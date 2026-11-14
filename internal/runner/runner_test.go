@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"smtbench/internal/affinity"
+	"smtbench/internal/cpuload"
 	"smtbench/internal/kernels"
 	"smtbench/internal/plan"
 	"smtbench/internal/result"
@@ -95,5 +96,52 @@ func TestRunInitError(t *testing.T) {
 	cfg.MemBytes = 10 // too small: kernel init fails
 	if _, err := Run(context.Background(), cfg, ws); err == nil {
 		t.Fatal("expected init error")
+	}
+}
+
+// busySampler reports every CPU as 50% busy between any two samples.
+type busySampler struct{ n uint64 }
+
+func (s *busySampler) Sample() (map[int]cpuload.Times, error) {
+	s.n++
+	m := map[int]cpuload.Times{}
+	for c := 0; c < 1024; c++ {
+		m[c] = cpuload.Times{Busy: 50 * s.n, Total: 100 * s.n}
+	}
+	return m, nil
+}
+
+func TestNoisyRetry(t *testing.T) {
+	cfg, ws := quickConfig(t, 100)
+	if len(cfg.Topo.Cores[0].Threads) < 2 {
+		t.Skip("needs SMT")
+	}
+	cfg.Load = &busySampler{}
+	cfg.Params.NoiseMaxPct = 3
+	points, err := Run(context.Background(), cfg, ws[:1]) // single k=0, sibling idle
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := points[0]; p.Retries != 2 || !p.Noisy || p.NoisePct < 49 {
+		t.Fatalf("%+v", p)
+	}
+}
+
+func TestETAMatchesRemaining(t *testing.T) {
+	cfg, ws := quickConfig(t, 30)
+	cfg.Params.WarmupMS = 0
+	var etaAt time.Time
+	var eta time.Duration
+	cfg.Progress = func(p Progress) {
+		if p.Done == p.Total/2 {
+			etaAt, eta = time.Now(), p.ETA
+		}
+	}
+	if _, err := Run(context.Background(), cfg, ws); err != nil {
+		t.Fatal(err)
+	}
+	actual := time.Since(etaAt)
+	if r := float64(eta) / float64(actual); r < 0.7 || r > 1.3 {
+		t.Fatalf("eta %v actual %v", eta, actual)
 	}
 }

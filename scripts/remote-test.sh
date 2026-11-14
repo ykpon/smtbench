@@ -6,13 +6,13 @@ set -euo pipefail
 HOST="${SMTBENCH_HOST:-root@test-host}"
 PORT="${SMTBENCH_PORT:-666}"
 DIR=/root/smtbench
-SSHOPT="-o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=3"
+SSH=(ssh -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -p "$PORT" "$HOST")
+export MSYS_NO_PATHCONV=1
 
 pkg="$1"; shift
 name="$(basename "$pkg")"
 cd "$(dirname "$0")/.."
 mkdir -p dist
 GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go test -c -o "dist/$name.test" "./$pkg"
-ssh $SSHOPT -p "$PORT" "$HOST" "mkdir -p $DIR"
-scp $SSHOPT -q -P "$PORT" "dist/$name.test" "$HOST:$DIR/"
-ssh $SSHOPT -p "$PORT" "$HOST" "cd $DIR && chmod +x $name.test && ./$name.test -test.v $*"
+"${SSH[@]}" "mkdir -p $DIR && rm -f $DIR/$name.test && cat > $DIR/$name.test && chmod +x $DIR/$name.test" < "dist/$name.test"
+"${SSH[@]}" "cd $DIR && ./$name.test -test.v $*"
