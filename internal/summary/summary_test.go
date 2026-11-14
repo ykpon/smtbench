@@ -207,3 +207,30 @@ func TestDriftWarningAggregated(t *testing.T) {
 		t.Fatalf("drift warnings %d: %v", n, s.Warnings)
 	}
 }
+
+func TestFrequencyMHz(t *testing.T) {
+	s := Compute(mkRun([]pt{
+		{0, "single", 0, 0, []float64{1000}, nil, 3600, false},
+		{0, "single", 1, 0, []float64{950}, nil, 3500, false},
+		{0, "pair", 0, 0, []float64{800, 800}, nil, 3580, false},
+		{0, "pair", 1, 0, []float64{760, 760}, nil, 3400, false},
+		{0, "final", 0, 0, []float64{1000}, nil, 3800, false},
+	}))
+	c := s.Cores[0]
+	if !approx(c.MHzIdle, 3700) || !approx(c.MHzFullSingle, 3500) || !approx(c.MHzFullPair, 3400) {
+		t.Fatalf("core mhz %v %v %v", c.MHzIdle, c.MHzFullSingle, c.MHzFullPair)
+	}
+	if !approx(c.Curve.MHz[1], 3500) || !approx(c.Curve.PairMHz[0], 3580) {
+		t.Fatalf("curve mhz %v %v", c.Curve.MHz, c.Curve.PairMHz)
+	}
+	if !approx(s.MHzIdle, 3700) || !approx(s.MHzFullPair, 3400) || !approx(s.Avg.MHz[0], 3600) {
+		t.Fatalf("summary mhz %v %v %v", s.MHzIdle, s.MHzFullPair, s.Avg.MHz)
+	}
+}
+
+func TestFrequencyMissing(t *testing.T) {
+	s := Compute(mkRun([]pt{{0, "single", 0, 0, []float64{1000}, nil, 0, false}}))
+	if s.MHzIdle != -1 || s.Cores[0].MHzIdle != -1 || s.Avg.MHz[0] != -1 {
+		t.Fatalf("%v %v %v", s.MHzIdle, s.Cores[0].MHzIdle, s.Avg.MHz)
+	}
+}

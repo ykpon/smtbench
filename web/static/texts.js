@@ -61,3 +61,7 @@ export function groupKindWord(cpu) {
 export function sizeMB(kb) {
   return `${Math.round(kb / 1024)}${nbsp}МБ`;
 }
+
+export function fmtMHz(v) {
+  return v == null || v <= 0 ? "—" : `${Math.round(v)}${nbsp}МГц`;
+}

@@ -106,7 +106,7 @@ func (pr *Printer) Line(p runner.Progress) {
 	}
 	freq := ""
 	if mhz > 0 {
-		freq = " · " + Dec(mhz/1000) + " ГГц"
+		freq = fmt.Sprintf(" · %d МГц", int(math.Round(mhz)))
 	}
 	noisy := ""
 	if p.Point.Noisy {
@@ -144,6 +144,16 @@ func Summary(w io.Writer, r *result.Run, s summary.Summary) {
 	}
 	if s.LagRatio > 0 {
 		fmt.Fprintf(w, "  Лаги при полной загрузке: самые долгие тики в %s раза длиннее%s\n", Dec(s.LagRatio), rated(s, "lag"))
+	}
+	if s.HasFreq && s.MHzIdle > 0 {
+		line := fmt.Sprintf("  Частота ядра: %d МГц на пустой машине", int(math.Round(s.MHzIdle)))
+		if s.MHzFullSingle > 0 {
+			line += fmt.Sprintf(", %d МГц при полной загрузке (1 сервер на ядро)", int(math.Round(s.MHzFullSingle)))
+		}
+		if s.HasPair && s.MHzFullPair > 0 {
+			line += fmt.Sprintf(", %d МГц (2 сервера на ядро)", int(math.Round(s.MHzFullPair)))
+		}
+		fmt.Fprintln(w, line)
 	}
 	if s.KneeSingle >= 0 {
 		fmt.Fprintf(w, "  Просадка меньше 5%%, пока загружено не больше %d других ядер\n", s.KneeSingle)

@@ -15,7 +15,7 @@ function svgEl(name, attrs = {}, text) {
 /**
  * opts: {
  *   xs: number[],                       // loaded-core counts
- *   series: [{ name, color, dash, values: number[], noisy?: boolean[] }],
+ *   series: [{ name, color, dash, values: number[], noisy?: boolean[], labels?: string[] }],
  *   band?: { from: number, label: string },   // shaded area for x > from
  *   xTitle: string,
  *   tooltipTitle: (x) => string,
@@ -117,7 +117,8 @@ export function renderChart(el, opts) {
     let noisy = false;
     const rows = opts.series.map((s) => {
       noisy = noisy || (s.noisy && s.noisy[i]);
-      return `<div class="row"><span class="key"><i style="background:${s.color}"></i>${esc(s.name)}</span><b>${fmtPct(s.values[i])}</b></div>`;
+      const text = s.labels ? s.labels[i] : fmtPct(s.values[i]);
+      return `<div class="row"><span class="key"><i style="background:${s.color}"></i>${esc(s.name)}</span><b>${esc(text)}</b></div>`;
     });
     showTip(`<div><b>${esc(opts.tooltipTitle(xs[i]))}</b></div>${rows.join("")}${noisy ? '<div class="muted">⚠ измерено с помехами от других процессов</div>' : ""}`, evt.clientX, evt.clientY);
   };

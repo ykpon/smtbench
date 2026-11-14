@@ -1,5 +1,5 @@
 // Grid of physical cores grouped by L3 group (socket or chiplet).
-import { esc, fmtPct, groupName, sizeMB, metricText } from "../texts.js";
+import { esc, fmtMHz, fmtPct, groupName, sizeMB, metricText } from "../texts.js";
 import { showTip, hideTip } from "./tooltip.js";
 
 const steps = ["--seq-0", "--seq-1", "--seq-2", "--seq-3", "--seq-4"];
@@ -50,6 +50,10 @@ export function renderCoreMap(el, run, summary, metric, selected, onSelect) {
         `<div><b>Ядро ${id}</b></div>`,
         `<div class="row"><span>${esc(metricText[metric])}</span><b>${fmtPct(c[metric])}</b></div>`,
       ];
+      if (c.mhz_idle > 0) {
+        lines.push(`<div class="row"><span>Частота на пустой машине</span><b>${fmtMHz(c.mhz_idle)}</b></div>`);
+        lines.push(`<div class="row"><span>Частота, всё занято</span><b>${fmtMHz(c.mhz_full_pair > 0 ? c.mhz_full_pair : c.mhz_full_single)}</b></div>`);
+      }
       if (c.weak) lines.push('<div class="muted">медленнее остальных ядер больше чем на 5%</div>');
       if (c.drift) lines.push(`<div class="muted">скорость в начале и в конце теста различается на ${Math.round(c.drift_pct)}%</div>`);
       if (c.noisy) lines.push('<div class="muted">⚠ часть замеров с помехами от других процессов</div>');

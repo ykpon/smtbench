@@ -1,7 +1,7 @@
 import { api } from "../app.js";
 import { renderChart } from "../components/chart.js";
 import { renderCoreMap } from "../components/coremap.js";
-import { esc, fmtDate, fmtInt, fmtPct, fmtTimes, groupKindWord, metricText, ratingHTML } from "../texts.js";
+import { esc, fmtDate, fmtInt, fmtMHz, fmtPct, fmtTimes, groupKindWord, metricText, ratingHTML } from "../texts.js";
 
 export function boundaryLabel(run) {
   const kind = groupKindWord(run.cpu);
@@ -13,7 +13,14 @@ export function curveSeries(curve, hasFreq) {
     { name: "1 сервер на ядро", color: "var(--series-1)", values: curve.single, noisy: curve.noisy },
   ];
   if (curve.pair.some((v) => v >= 0)) s.push({ name: "2 сервера на ядро", color: "var(--series-2)", values: curve.pair, noisy: curve.noisy });
-  if (hasFreq) s.push({ name: "частота", color: "var(--series-3)", dash: true, values: curve.freq_pct });
+  if (hasFreq) {
+    const labels = curve.freq_pct.map((v, i) => {
+      if (v < 0) return "—";
+      const pair = curve.pair_mhz[i] > 0 ? `, при 2 серверах ${fmtMHz(curve.pair_mhz[i])}` : "";
+      return `${fmtPct(v)} · ${fmtMHz(curve.mhz[i])}${pair}`;
+    });
+    s.push({ name: "частота", color: "var(--series-3)", dash: true, values: curve.freq_pct, labels });
+  }
   return s;
 }
 
@@ -46,6 +53,7 @@ function cards(s) {
 }
 
 function detailsTable(run, s) {
+  const f = s.has_freq;
   const threads = new Map(run.cpu.cores.map((c) => [c.id, c.threads.join("/")]));
   const rows = s.cores.map((c) => `<tr>
     <td>${c.core}</td><td>${threads.get(c.core) || ""}</td>
@@ -55,12 +63,13 @@ function detailsTable(run, s) {
     <td class="num">${fmtPct(c.full_single_pct)}</td>
     <td class="num">${fmtPct(c.full_pair_pct)}</td>
     <td class="num">${fmtTimes(c.lag_ratio)}</td>
+    ${f ? `<td class="num">${fmtMHz(c.mhz_idle)}</td><td class="num">${fmtMHz(c.mhz_full_single)}</td><td class="num">${fmtMHz(c.mhz_full_pair)}</td>` : ""}
     <td>${[c.weak ? "медленное" : "", c.drift ? `дрейф ${Math.round(c.drift_pct)}%` : "", c.noisy ? "помехи" : ""].filter(Boolean).join(", ")}</td>
   </tr>`).join("");
   return `<div class="scroll"><table><thead><tr>
     <th>Ядро</th><th>Потоки</th><th class="num">Тиков/с</th><th class="num">Скорость ядра</th>
     <th class="num">2 сервера</th><th class="num">1 сервер, всё занято</th><th class="num">2 сервера, всё занято</th>
-    <th class="num">Лаги</th><th>Заметки</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    <th class="num">Лаги</th>${f ? `<th class="num">Частота, пусто</th><th class="num">Частота, 1 сервер, всё занято</th><th class="num">Частота, 2 сервера, всё занято</th>` : ""}<th>Заметки</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 export async function renderRun(app, id) {
@@ -76,6 +85,7 @@ export async function renderRun(app, id) {
     <div class="cards">${cards(s)}</div>
     <div class="facts">
       <span>Скорость одного ядра на пустой машине: <b>${s.baseline_tps > 0 ? fmtInt(s.baseline_tps) : "—"}</b> тиков/с</span>
+      ${s.has_freq ? `<span>Частота ядра: <b>${fmtMHz(s.mhz_idle)}</b> на пустой машине, <b>${fmtMHz(s.mhz_full_single)}</b> при полной загрузке${s.has_pair ? `, <b>${fmtMHz(s.mhz_full_pair)}</b> при 2 серверах на ядро` : ""}</span>` : ""}
       ${knee}
     </div>
     ${warnings.length ? `<div class="warnings"><b>Обратите внимание</b><ul>${warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul></div>` : ""}
@@ -87,7 +97,7 @@ export async function renderRun(app, id) {
       <div id="chart"></div>
       <p class="muted small">${run.cpu.l3_groups.length > 1 ? `Порядок загрузки: ${p.order === "far" ? "сначала чужой" : "сначала свой"} ${groupKindWord(run.cpu)}.` : "Все ядра делят один кэш L3, порядок загрузки не важен."}
         Фоновые ядра загружены ${p.bg_threads === 1 ? "одним потоком (1 сервер на ядро)" : "обоими потоками (2 сервера на ядро)"}.
-        Частота — в процентах от частоты на пустой машине. Полый кружок — замер с помехами.</p>
+        Частота — в процентах от частоты на пустой машине, в подсказке — в МГц. Полый кружок — замер с помехами.</p>
     </div>
 
     <h2>Карта ядер</h2>

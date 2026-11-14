@@ -58,6 +58,8 @@ type Curve struct {
 	Single   []float64 `json:"single"`
 	Pair     []float64 `json:"pair"`
 	FreqPct  []float64 `json:"freq_pct"`
+	MHz      []float64 `json:"mhz"`      // thread A, 1 server per core
+	PairMHz  []float64 `json:"pair_mhz"` // 2 servers per core
 	Noisy    []bool    `json:"noisy"`
 	Boundary int       `json:"boundary"`
 }
@@ -72,6 +74,9 @@ type Core struct {
 	FullPairPct    float64 `json:"full_pair_pct"`
 	LagRatio       float64 `json:"lag_ratio"`
 	DriftPct       float64 `json:"drift_pct"`
+	MHzIdle        float64 `json:"mhz_idle"`
+	MHzFullSingle  float64 `json:"mhz_full_single"`
+	MHzFullPair    float64 `json:"mhz_full_pair"`
 	Weak           bool    `json:"weak"`
 	Drift          bool    `json:"drift"`
 	DriftFreq      bool    `json:"drift_freq"`
@@ -89,6 +94,9 @@ type Summary struct {
 	FullSinglePct  float64           `json:"full_single_pct"`
 	FullPairPct    float64           `json:"full_pair_pct"`
 	LagRatio       float64           `json:"lag_ratio"`
+	MHzIdle        float64           `json:"mhz_idle"`
+	MHzFullSingle  float64           `json:"mhz_full_single"`
+	MHzFullPair    float64           `json:"mhz_full_pair"`
 	KneeSingle     int               `json:"knee_single"`
 	Ratings        map[string]Rating `json:"ratings"`
 	Avg            Curve             `json:"avg"`
@@ -200,6 +208,11 @@ func Compute(r *result.Run) Summary {
 		fullP = append(fullP, c.FullPairPct)
 		lag = append(lag, c.LagRatio)
 	}
+	var mi, mfs, mfp []float64
+	for _, c := range s.Cores {
+		mi, mfs, mfp = append(mi, c.MHzIdle), append(mfs, c.MHzFullSingle), append(mfp, c.MHzFullPair)
+	}
+	s.MHzIdle, s.MHzFullSingle, s.MHzFullPair = mean(mi), mean(mfs), mean(mfp)
 	if w := driftWarning(s.Cores); w != "" {
 		s.Warnings = append(s.Warnings, w)
 	}
@@ -272,7 +285,8 @@ func tps(p result.Point, ok bool, i int) float64 {
 }
 
 func computeCore(id int, pts map[key]result.Point) Core {
-	c := Core{Core: id, HTPerThreadPct: -1, HTTotalPct: -1, FullSinglePct: -1, FullPairPct: -1, LagRatio: -1}
+	c := Core{Core: id, HTPerThreadPct: -1, HTTotalPct: -1, FullSinglePct: -1, FullPairPct: -1, LagRatio: -1,
+		MHzIdle: -1, MHzFullSingle: -1, MHzFullPair: -1}
 	single0, okS := pts[key{"single", 0}]
 	c.BaseTPS = tps(single0, okS, 0)
 	// The final point repeats single k=0 after the ramp. Turbo frequency on a
@@ -284,6 +298,7 @@ func computeCore(id int, pts map[key]result.Point) Core {
 		c.Drift = c.DriftPct > driftPct
 		if m0, m1 := single0.Threads[0].MHz, final.Threads[0].MHz; m0 > 0 && m1 > 0 {
 			c.DriftFreq = 100*math.Abs(m1-m0)/m0 > driftPct
+			c.MHzIdle = (m0 + m1) / 2
 		}
 		c.BaseTPS = (s0 + f) / 2
 	}
@@ -321,6 +336,9 @@ func computeCore(id int, pts map[key]result.Point) Core {
 	mhz0 := -1.0
 	if okS && len(single0.Threads) > 0 && single0.Threads[0].MHz > 0 {
 		mhz0 = single0.Threads[0].MHz
+		if c.MHzIdle < 0 {
+			c.MHzIdle = mhz0
+		}
 	}
 	for _, k := range cv.Loaded {
 		sp, okSP := pts[key{"single", k}]
@@ -336,6 +354,8 @@ func computeCore(id int, pts map[key]result.Point) Core {
 			f = pct(sp.Threads[0].MHz, mhz0)
 		}
 		cv.FreqPct = append(cv.FreqPct, f)
+		cv.MHz = append(cv.MHz, mhzOf(sp, okSP))
+		cv.PairMHz = append(cv.PairMHz, mhzOf(pp, okPP))
 		cv.Noisy = append(cv.Noisy, (okSP && sp.Noisy) || (okPP && pp.Noisy))
 	}
 	cv.Boundary = boundary(pts, cv.Loaded)
@@ -345,6 +365,8 @@ func computeCore(id int, pts map[key]result.Point) Core {
 		kmax := cv.Loaded[n-1]
 		c.FullSinglePct = cv.Single[n-1]
 		c.FullPairPct = cv.Pair[n-1]
+		c.MHzFullSingle = cv.MHz[n-1]
+		c.MHzFullPair = cv.PairMHz[n-1]
 		base99 := -1.0
 		if okS && len(single0.Threads) > 0 {
 			base99 = single0.Threads[0].TickP99us
@@ -411,7 +433,7 @@ func boundary(pts map[key]result.Point, loaded []int) int {
 
 // averageCurve averages curves over cores at the k values present in all of them.
 func averageCurve(cores []Core) Curve {
-	avg := Curve{Boundary: -1, Loaded: []int{}, Single: []float64{}, Pair: []float64{}, FreqPct: []float64{}, Noisy: []bool{}}
+	avg := Curve{Boundary: -1, Loaded: []int{}, Single: []float64{}, Pair: []float64{}, FreqPct: []float64{}, MHz: []float64{}, PairMHz: []float64{}, Noisy: []bool{}}
 	if len(cores) == 0 {
 		return avg
 	}
@@ -425,21 +447,33 @@ func averageCurve(cores []Core) Curve {
 		if count[k] != len(cores) {
 			continue
 		}
-		var sv, pv, fv []float64
+		var sv, pv, fv, mv, pmv []float64
 		noisy := false
 		for _, c := range cores {
 			i := sort.SearchInts(c.Curve.Loaded, k)
 			sv = append(sv, c.Curve.Single[i])
 			pv = append(pv, c.Curve.Pair[i])
 			fv = append(fv, c.Curve.FreqPct[i])
+			mv = append(mv, c.Curve.MHz[i])
+			pmv = append(pmv, c.Curve.PairMHz[i])
 			noisy = noisy || c.Curve.Noisy[i]
 		}
 		avg.Loaded = append(avg.Loaded, k)
 		avg.Single = append(avg.Single, mean(sv))
 		avg.Pair = append(avg.Pair, mean(pv))
 		avg.FreqPct = append(avg.FreqPct, mean(fv))
+		avg.MHz = append(avg.MHz, mean(mv))
+		avg.PairMHz = append(avg.PairMHz, mean(pmv))
 		avg.Noisy = append(avg.Noisy, noisy)
 	}
 	avg.Boundary = cores[0].Curve.Boundary
 	return avg
+}
+
+// mhzOf returns the frequency of the first measured thread, or -1.
+func mhzOf(p result.Point, ok bool) float64 {
+	if !ok || len(p.Threads) == 0 || p.Threads[0].MHz <= 0 {
+		return -1
+	}
+	return p.Threads[0].MHz
 }
