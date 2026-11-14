@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"smtbench/internal/affinity"
+	"smtbench/internal/freq"
 	"smtbench/internal/hist"
 	"smtbench/internal/kernels"
 	"smtbench/internal/timing"
@@ -34,6 +35,7 @@ type sample struct {
 	cpuTime  time.Duration
 	p50, p99 float64 // µs
 	p999     float64
+	mhz      float64
 	aborted  bool
 }
 
@@ -45,9 +47,10 @@ type worker struct {
 	cmds  chan cmd
 	clock timing.Clock
 	h     hist.Hist
+	freq  freq.Counter // nil when frequency is not measured
 }
 
-func startWorker(cpu int, mix kernels.Mix, memBytes int, clock timing.Clock, wg *sync.WaitGroup, ready chan<- error) *worker {
+func startWorker(cpu int, mix kernels.Mix, memBytes int, clock timing.Clock, fsrc freq.Source, wg *sync.WaitGroup, ready chan<- error) *worker {
 	w := &worker{cpu: cpu, cmds: make(chan cmd, 4), clock: clock}
 	wg.Add(1)
 	go func() {
@@ -64,6 +67,12 @@ func startWorker(cpu int, mix kernels.Mix, memBytes int, clock timing.Clock, wg 
 		if err != nil {
 			ready <- err
 			return
+		}
+		if fsrc != nil {
+			if c, err := fsrc.Open(cpu); err == nil {
+				w.freq = c
+				defer c.Close()
+			}
 		}
 		ready <- nil
 		w.loop(tick)
@@ -107,6 +116,10 @@ func (w *worker) measure(tick *kernels.Tick, deadline uint64, local *uint64) (*c
 	w.h.Reset()
 	s := sample{cpu: w.cpu}
 	cpu0, _ := affinity.ThreadCPUTime()
+	var cyc0 uint64
+	if w.freq != nil {
+		cyc0, _ = w.freq.Cycles()
+	}
 	start := w.clock.Now()
 	last := start
 	var next *cmd
@@ -130,6 +143,11 @@ func (w *worker) measure(tick *kernels.Tick, deadline uint64, local *uint64) (*c
 	}
 	cpu1, _ := affinity.ThreadCPUTime()
 	s.wallUs = w.clock.Us(last - start)
+	if w.freq != nil {
+		if cyc1, err := w.freq.Cycles(); err == nil && s.wallUs > 0 {
+			s.mhz = float64(cyc1-cyc0) / s.wallUs
+		}
+	}
 	s.cpuTime = cpu1 - cpu0
 	s.p50 = w.h.Quantile(0.5) / 1000
 	s.p99 = w.h.Quantile(0.99) / 1000

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"smtbench/internal/cpuload"
+	"smtbench/internal/freq"
 	"smtbench/internal/kernels"
 	"smtbench/internal/plan"
 	"smtbench/internal/result"
@@ -25,6 +26,7 @@ type Config struct {
 	MemBytes int
 	Clock    timing.Clock
 	Load     cpuload.Sampler // nil: idle siblings are not checked
+	Freq     freq.Source     // nil: MHz is 0
 	Progress func(Progress)
 }
 
@@ -85,7 +87,7 @@ func (r *runner) start(ws []plan.Window) error {
 	}
 	ready := make(chan error, len(cpus))
 	for c := range cpus {
-		r.workers[c] = startWorker(c, r.cfg.Mix, r.cfg.MemBytes, r.cfg.Clock, &r.wg, ready)
+		r.workers[c] = startWorker(c, r.cfg.Mix, r.cfg.MemBytes, r.cfg.Clock, r.cfg.Freq, &r.wg, ready)
 		r.state[c] = stIdle
 	}
 	var firstErr error
@@ -243,6 +245,7 @@ func (r *runner) measure(ctx context.Context, cpus []int) ([]result.ThreadResult
 			TickP50us:   s.p50,
 			TickP99us:   s.p99,
 			TickP999us:  s.p999,
+			MHz:         s.mhz,
 		}
 	}
 	return out, foreign, nil

@@ -9,6 +9,7 @@ import (
 
 	"smtbench/internal/affinity"
 	"smtbench/internal/cpuload"
+	"smtbench/internal/freq"
 	"smtbench/internal/kernels"
 	"smtbench/internal/plan"
 	"smtbench/internal/result"
@@ -143,5 +144,28 @@ func TestETAMatchesRemaining(t *testing.T) {
 	actual := time.Since(etaAt)
 	if r := float64(eta) / float64(actual); r < 0.7 || r > 1.3 {
 		t.Fatalf("eta %v actual %v", eta, actual)
+	}
+}
+
+type fakeCounter struct{ n uint64 }
+
+func (c *fakeCounter) Cycles() (uint64, error) { c.n += 1_000_000; return c.n, nil }
+func (c *fakeCounter) Close() error            { return nil }
+
+type fakeFreq struct{}
+
+func (fakeFreq) Name() string                   { return "fake" }
+func (fakeFreq) Open(int) (freq.Counter, error) { return &fakeCounter{}, nil }
+
+func TestRunReportsMHz(t *testing.T) {
+	cfg, ws := quickConfig(t, 100)
+	cfg.Freq = fakeFreq{}
+	points, err := Run(context.Background(), cfg, ws[:1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 1e6 cycles over ~100 ms = ~10 MHz
+	if mhz := points[0].Threads[0].MHz; mhz < 5 || mhz > 20 {
+		t.Fatalf("mhz %v", mhz)
 	}
 }
