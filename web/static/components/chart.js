@@ -83,7 +83,7 @@ export function renderChart(el, opts) {
         const v = s.values[i];
         if (v == null || v < 0) return;
         const noisy = s.noisy && s.noisy[i];
-        svg.appendChild(svgEl("circle", { class: "marker", cx: X(x), cy: Y(v), r: 4, fill: noisy ? "var(--surface)" : s.color, stroke: noisy ? s.color : "var(--surface)" }));
+        svg.appendChild(svgEl("circle", { class: "marker", cx: X(x), cy: Y(v), r: 4, style: `fill:${noisy ? "var(--surface)" : s.color};stroke:${noisy ? s.color : "var(--surface)"}` }));
       });
     }
     let last = -1;

@@ -85,7 +85,7 @@ export async function renderRun(app, id) {
       <div class="toolbar"><label>Показать: <select id="core"></select></label>
         ${s.has_freq ? "" : '<span class="muted small">частота не измерялась</span>'}</div>
       <div id="chart"></div>
-      <p class="muted small">Порядок загрузки: ${p.order === "far" ? "сначала чужой" : "сначала свой"} ${groupKindWord(run.cpu)}.
+      <p class="muted small">${run.cpu.l3_groups.length > 1 ? `Порядок загрузки: ${p.order === "far" ? "сначала чужой" : "сначала свой"} ${groupKindWord(run.cpu)}.` : "Все ядра делят один кэш L3, порядок загрузки не важен."}
         Фоновые ядра загружены ${p.bg_threads === 1 ? "одним потоком (1 сервер на ядро)" : "обоими потоками (2 сервера на ядро)"}.
         Частота — в процентах от частоты на пустой машине. Полый кружок — замер с помехами.</p>
     </div>
