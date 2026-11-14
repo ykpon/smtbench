@@ -23,6 +23,9 @@ func (e permanentError) Error() string { return e.msg }
 // Send posts a gzipped result to baseURL/api/runs and returns the URL of the run page.
 func Send(ctx context.Context, baseURL string, raw []byte) (string, error) {
 	base := strings.TrimRight(baseURL, "/")
+	if !strings.Contains(base, "://") {
+		base = "http://" + base
+	}
 	var zbuf bytes.Buffer
 	zw := gzip.NewWriter(&zbuf)
 	zw.Write(raw)

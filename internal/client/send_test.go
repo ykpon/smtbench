@@ -67,3 +67,16 @@ func TestSendUnreachable(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestSendAddsScheme(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(201)
+		w.Write([]byte(`{"id":"x","url":"/#/run/x"}`))
+	}))
+	defer srv.Close()
+	host := strings.TrimPrefix(srv.URL, "http://")
+	url, err := Send(context.Background(), host, []byte("{}"))
+	if err != nil || url != srv.URL+"/#/run/x" {
+		t.Fatalf("%q %v", url, err)
+	}
+}
