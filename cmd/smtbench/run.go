@@ -159,7 +159,7 @@ func execRun(ctx context.Context, o runOpts, d runDeps) int {
 		o.Out = fmt.Sprintf("smtbench-%s-%s.json", o.Label, time.Now().Format("20060102-150405"))
 	}
 
-	cfg := runner.Config{Topo: t, Params: o.Params, Mix: o.Mix, MemBytes: o.MemBytes, Clock: clock, Load: d.load, Freq: d.freq}
+	cfg := runner.Config{Topo: t, Params: o.Params, Mix: o.Mix, MemBytes: o.MemBytes, Clock: clock, Load: d.load, Freq: d.freq, PrewarmMS: 5000}
 	if d.freq != nil && d.freq.Name() == "none" {
 		cfg.Freq = nil
 	}

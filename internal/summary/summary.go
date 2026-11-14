@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 
 	"smtbench/internal/result"
 )
@@ -193,7 +194,7 @@ func Compute(r *result.Run) Summary {
 			s.WeakCores = append(s.WeakCores, c.Core)
 		}
 		if c.Drift {
-			s.Warnings = append(s.Warnings, fmt.Sprintf("ядро %d: скорость в начале и в конце теста различается на %.1f%% (нагрев или фоновая нагрузка)", c.Core, c.DriftPct))
+			s.Warnings = append(s.Warnings, fmt.Sprintf("ядро %d: скорость в начале и в конце теста различается на %s%% (нагрев или фоновая нагрузка)", c.Core, strings.Replace(fmt.Sprintf("%.1f", c.DriftPct), ".", ",", 1)))
 		}
 		ht = append(ht, c.HTPerThreadPct)
 		htTotal = append(htTotal, c.HTTotalPct)

@@ -27,7 +27,10 @@ type Config struct {
 	Clock    timing.Clock
 	Load     cpuload.Sampler // nil: idle siblings are not checked
 	Freq     freq.Source     // nil: MHz is 0
-	Progress func(Progress)
+	// PrewarmMS loads the first window's CPUs before the first measurement so
+	// the first core is not measured while the CPU is still ramping up.
+	PrewarmMS int
+	Progress  func(Progress)
 }
 
 const maxRetries = 2
@@ -56,6 +59,14 @@ func Run(ctx context.Context, cfg Config, ws []plan.Window) ([]result.Point, err
 	defer r.shutdown()
 	if err := r.start(ws); err != nil {
 		return nil, err
+	}
+	if len(ws) > 0 && cfg.PrewarmMS > 0 {
+		for _, c := range ws[0].Measure {
+			r.set(c, stLoad)
+		}
+		if err := sleepCtx(ctx, time.Duration(cfg.PrewarmMS)*time.Millisecond); err != nil {
+			return nil, err
+		}
 	}
 
 	points := make([]result.Point, 0, len(ws))

@@ -169,3 +169,16 @@ func TestRunReportsMHz(t *testing.T) {
 		t.Fatalf("mhz %v", mhz)
 	}
 }
+
+func TestRunPrewarms(t *testing.T) {
+	cfg, ws := quickConfig(t, 50)
+	cfg.Params.WarmupMS = 0
+	cfg.PrewarmMS = 400
+	start := time.Now()
+	if _, err := Run(context.Background(), cfg, ws[:1]); err != nil {
+		t.Fatal(err)
+	}
+	if d := time.Since(start); d < 400*time.Millisecond {
+		t.Fatalf("finished in %v, prewarm skipped", d)
+	}
+}

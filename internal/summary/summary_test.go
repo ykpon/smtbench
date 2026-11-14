@@ -162,3 +162,15 @@ func TestRateThresholds(t *testing.T) {
 		}
 	}
 }
+
+func TestWarningsUseDecimalComma(t *testing.T) {
+	s := Compute(mkRun([]pt{
+		{0, "single", 0, 0, []float64{1000}, nil, 0, false},
+		{0, "final", 0, 0, []float64{838}, nil, 0, false},
+	}))
+	for _, w := range s.Warnings {
+		if strings.Contains(w, "16.2") || (strings.Contains(w, "ядро 0") && !strings.Contains(w, "16,2%")) {
+			t.Fatalf("warning %q", w)
+		}
+	}
+}
