@@ -1,5 +1,5 @@
-// Line chart of speed (%) against the number of loaded cores.
-// All series share one percent axis. Missing values are -1.
+// Line chart with one percent axis. Missing values are -1; a line skips
+// them and connects its measured points.
 import { showTip, hideTip } from "./tooltip.js";
 import { esc, fmtPct } from "../texts.js";
 
@@ -14,12 +14,13 @@ function svgEl(name, attrs = {}, text) {
 
 /**
  * opts: {
- *   xs: number[],                       // loaded-core counts
+ *   xs: number[],
  *   series: [{ name, color, dash, values: number[], noisy?: boolean[], labels?: string[] }],
  *   band?: { from: number, label: string },   // shaded area for x > from
  *   xTitle: string,
  *   tooltipTitle: (x) => string,
  * }
+ * labels replace the percent shown in the tooltip for that series.
  */
 export function renderChart(el, opts) {
   el.innerHTML = "";
@@ -33,13 +34,15 @@ export function renderChart(el, opts) {
 
   const W = Math.max(el.clientWidth || 800, 320);
   const narrow = W < 560;
+  const direct = !narrow && opts.series.length <= 4;
   const H = narrow ? 260 : 320;
-  const m = { l: 44, r: narrow ? 12 : 130, t: 26, b: 42 };
+  const m = { l: 44, r: direct ? 170 : 16, t: 26, b: 42 };
   const xs = opts.xs;
   const xMax = Math.max(1, xs[xs.length - 1] ?? 1);
   let vMax = 100;
   for (const s of opts.series) for (const v of s.values) if (v > vMax) vMax = v;
-  const yMax = Math.ceil((vMax + 5) / 20) * 20;
+  const yStep = vMax > 130 ? 50 : 20;
+  const yMax = Math.ceil((vMax + 5) / yStep) * yStep;
   const X = (x) => m.l + (x / xMax) * (W - m.l - m.r);
   const Y = (v) => m.t + (1 - v / yMax) * (H - m.t - m.b);
 
@@ -53,10 +56,12 @@ export function renderChart(el, opts) {
   }
 
   const grid = svgEl("g", { class: "grid" });
-  for (let v = 0; v <= yMax; v += 20) {
-    grid.appendChild(svgEl("line", { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v), "stroke-width": v === 100 ? 1.5 : 1 }));
+  for (let v = 0; v <= yMax; v += yStep) {
+    grid.appendChild(svgEl("line", { x1: m.l, x2: W - m.r, y1: Y(v), y2: Y(v) }));
     svg.appendChild(svgEl("text", { x: m.l - 8, y: Y(v) + 4, "text-anchor": "end" }, `${v}%`));
   }
+  // 100% is the reference level of every chart: draw it a bit heavier.
+  grid.appendChild(svgEl("line", { x1: m.l, x2: W - m.r, y1: Y(100), y2: Y(100), "stroke-width": 2 }));
   svg.insertBefore(grid, svg.firstChild);
   svg.appendChild(svgEl("line", { class: "axis", x1: m.l, x2: W - m.r, y1: Y(0), y2: Y(0) }));
 
@@ -69,29 +74,30 @@ export function renderChart(el, opts) {
   const labels = [];
   for (const s of opts.series) {
     let d = "";
-    let pen = false;
+    let last = -1;
     xs.forEach((x, i) => {
       const v = s.values[i];
-      if (v == null || v < 0) { pen = false; return; }
-      d += `${pen ? "L" : "M"}${X(x).toFixed(1)},${Y(v).toFixed(1)}`;
-      pen = true;
+      if (v == null || v < 0) return;
+      d += `${d ? "L" : "M"}${X(x).toFixed(1)},${Y(v).toFixed(1)}`;
+      last = i;
     });
-    if (!d) continue;
+    if (last < 0) continue;
     svg.appendChild(svgEl("path", { class: `series${s.dash ? " dash" : ""}`, d, stroke: s.color }));
     if (!s.dash) {
       xs.forEach((x, i) => {
         const v = s.values[i];
         if (v == null || v < 0) return;
         const noisy = s.noisy && s.noisy[i];
-        svg.appendChild(svgEl("circle", { class: "marker", cx: X(x), cy: Y(v), r: 4, style: `fill:${noisy ? "var(--surface)" : s.color};stroke:${noisy ? s.color : "var(--surface)"}` }));
+        svg.appendChild(svgEl("circle", {
+          class: "marker", cx: X(x), cy: Y(v), r: 4,
+          style: `fill:${noisy ? "var(--surface)" : s.color};stroke:${noisy ? s.color : "var(--surface)"}`,
+        }));
       });
     }
-    let last = -1;
-    s.values.forEach((v, i) => { if (v >= 0) last = i; });
-    if (last >= 0) labels.push({ y: Y(s.values[last]), x: X(xs[last]), name: s.name });
+    labels.push({ y: Y(s.values[last]), x: X(xs[last]), name: s.name });
   }
 
-  if (!narrow && opts.series.length <= 4) {
+  if (direct) {
     labels.sort((a, b) => a.y - b.y);
     for (let i = 1; i < labels.length; i++) labels[i].y = Math.max(labels[i].y, labels[i - 1].y + 15);
     for (const l of labels) svg.appendChild(svgEl("text", { class: "direct", x: l.x + 10, y: l.y + 4 }, l.name));
@@ -115,12 +121,14 @@ export function renderChart(el, opts) {
     cross.setAttribute("x2", X(xs[i]));
     cross.setAttribute("visibility", "visible");
     let noisy = false;
-    const rows = opts.series.map((s) => {
-      noisy = noisy || (s.noisy && s.noisy[i]);
-      const text = s.labels ? s.labels[i] : fmtPct(s.values[i]);
-      return `<div class="row"><span class="key"><i style="background:${s.color}"></i>${esc(s.name)}</span><b>${esc(text)}</b></div>`;
-    });
-    showTip(`<div><b>${esc(opts.tooltipTitle(xs[i]))}</b></div>${rows.join("")}${noisy ? '<div class="muted">⚠ измерено с помехами от других процессов</div>' : ""}`, evt.clientX, evt.clientY);
+    const rows = opts.series
+      .filter((s) => s.values[i] != null && s.values[i] >= 0)
+      .map((s) => {
+        noisy = noisy || (s.noisy && s.noisy[i]);
+        const text = s.labels ? s.labels[i] : fmtPct(s.values[i]);
+        return `<div class="row"><span class="key"><i style="background:${s.color}"></i>${esc(s.name)}</span><b>${esc(text)}</b></div>`;
+      });
+    showTip(`<div><b>${esc(opts.tooltipTitle(xs[i]))}</b></div>${rows.join("") || '<div class="muted">нет замера</div>'}${noisy ? '<div class="muted">⚠ измерено с помехами от других процессов</div>' : ""}`, evt.clientX, evt.clientY);
   };
   hit.addEventListener("pointermove", move);
   hit.addEventListener("pointerdown", move);

@@ -19,7 +19,7 @@ sudo ./smtbench run --profile minecraft --label имя-ноды --send ${o}`,
 .\\smtbench.exe run --profile rust --label имя-ноды --send ${o}`,
   };
   app.innerHTML = `<h1>Как запустить тест</h1>
-    <p class="sub">Тест загружает все потоки машины на 100%: на 16 ядрах полный прогон идёт около 36 минут. Игровые серверы на ноде в это время будут тормозить, а их нагрузка исказит результат — запускайте на свободной ноде.</p>
+    <p class="sub">Тест загружает все потоки машины на 100%: на 16 ядрах полный прогон идёт около 52 минут. Игровые серверы на ноде в это время будут тормозить, а их нагрузка исказит результат — запускайте на свободной ноде.</p>
     <div class="panel">
       <div class="tabs"><button data-os="linux" class="active">Linux</button><button data-os="windows">Windows</button></div>
       <pre class="cmd" id="cmd"></pre>
@@ -37,7 +37,8 @@ sudo ./smtbench run --profile minecraft --label имя-ноды --send ${o}`,
       <tr><td><code>--cores 0-3</code></td><td>тестировать только часть ядер</td></tr>
       <tr><td><code>--duration 2s</code></td><td>короче замер каждой точки (по умолчанию 3 с)</td></tr>
       <tr><td><code>--order far</code></td><td>сначала загружать чужой чиплет или сокет (полезно на AMD X3D с двумя чиплетами)</td></tr>
-      <tr><td><code>--bg-threads 1</code></td><td>фоновые ядра грузить одним потоком: нода, где на ядре 1 сервер</td></tr>
+      <tr><td><code>--modes single,pair</code></td><td>не мерить второй поток ядра в одиночку на всей лесенке — на треть быстрее</td></tr>
+      <tr><td><code>--bg-threads 2</code></td><td>соседние ядра всегда грузить обоими потоками: сервер с целым ядром на ноде, проданной по потокам</td></tr>
     </tbody></table></div>`;
 
   const notes = {

@@ -100,7 +100,7 @@ func TestWeakAndDrift(t *testing.T) {
 	}
 	found := false
 	for _, w := range s.Warnings {
-		found = found || strings.Contains(w, "ядрах 0:")
+		found = found || strings.Contains(w, "на ядре 0:")
 	}
 	if !found {
 		t.Fatalf("warnings %v", s.Warnings)
@@ -175,7 +175,7 @@ func TestWarningsUseDecimalComma(t *testing.T) {
 		{0, "final", 0, 0, []float64{838}, nil, 0, false},
 	}))
 	for _, w := range s.Warnings {
-		if strings.Contains(w, "16.2") || (strings.Contains(w, "ядрах 0") && !strings.Contains(w, "16,2%")) {
+		if strings.Contains(w, "16.2") || (strings.Contains(w, "ядре 0") && !strings.Contains(w, "16,2%")) {
 			t.Fatalf("warning %q", w)
 		}
 	}

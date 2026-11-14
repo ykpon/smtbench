@@ -25,15 +25,12 @@ function differences(runs) {
   return Object.keys(paramNames).filter((k) => new Set(runs.map((r) => paramValue(r.run, k))).size > 1);
 }
 
-// mergeCurves puts curves with different x values on one x axis; gaps are -1.
-function mergeCurves(curves) {
-  const xs = [...new Set(curves.flatMap((c) => c.loaded))].sort((a, b) => a - b);
+// mergePoints puts node points of several runs on one axis of server counts; gaps are -1.
+function mergePoints(lists) {
+  const xs = [...new Set(lists.flatMap((l) => l.map((p) => p.servers)))].sort((a, b) => a - b);
   return {
     xs,
-    pick: (c, field) => xs.map((x) => {
-      const i = c.loaded.indexOf(x);
-      return i < 0 ? -1 : c[field][i];
-    }),
+    pick: (l) => xs.map((x) => l.find((p) => p.servers === x)?.per_server_pct ?? -1),
   };
 }
 
@@ -42,6 +39,11 @@ export async function renderCompare(app, ids) {
   const name = (r) => r.run.label || r.run.hostname;
   const base0 = runs[0].summary.baseline_tps;
   const diff = differences(runs);
+  const fit = (r, field) => {
+    const d = (r.summary.node.density || []).find((x) => x.min_pct === 90);
+    if (!d) return "—";
+    return d[field] > 0 ? `до ${d[field]}` : "ни одного";
+  };
 
   const row = (title, cell) => `<tr><th>${title}</th>${runs.map((r, i) => `<td class="num">${cell(r, i)}</td>`).join("")}</tr>`;
   const table = `<div class="panel scroll"><table>
@@ -50,32 +52,36 @@ export async function renderCompare(app, ids) {
       ${row("Процессор", (r) => esc(r.run.cpu.model))}
       ${row("Профиль", (r) => esc(r.run.params.profile))}
       ${row("Дата", (r) => fmtDate(r.run.started_at))}
-      ${row("Скорость одного ядра, тиков/с", (r) => (r.summary.baseline_tps > 0 ? fmtInt(r.summary.baseline_tps) : "—"))}
+      ${row("Скорость одного потока, тиков/с", (r) => (r.summary.baseline_tps > 0 ? fmtInt(r.summary.baseline_tps) : "—"))}
       ${row(`Скорость ядра относительно «${esc(name(runs[0]))}»`, (r) => fmtPct(base0 > 0 ? (100 * r.summary.baseline_tps) / base0 : -1))}
-      ${row("2 сервера на одном ядре, каждый", (r) => (r.summary.has_pair ? valueWithRating(fmtPct(r.summary.ht_per_thread_pct), r.summary.ratings.ht) : "HT нет"))}
-      ${row("1 сервер на ядро, всё занято", (r) => valueWithRating(fmtPct(r.summary.full_single_pct), r.summary.ratings.full_single))}
-      ${row("2 сервера на ядро, всё занято", (r) => (r.summary.has_pair ? valueWithRating(fmtPct(r.summary.full_pair_pct), r.summary.ratings.full_pair) : "HT нет"))}
+      ${row("Оба потока ядра нагружены: 1-й и 2-й поток", (r) => (r.summary.has_pair ? valueWithRating(`${fmtPct(r.summary.ht_a_pct)} и ${fmtPct(r.summary.ht_b_pct)}`, r.summary.ratings.ht) : "HT нет"))}
+      ${row("Нода забита по одному серверу на ядро, каждый", (r) => valueWithRating(fmtPct(r.summary.full_single_pct), r.summary.ratings.full_single))}
+      ${row("Нода забита по два сервера на ядро, каждый", (r) => (r.summary.has_pair ? valueWithRating(fmtPct(r.summary.full_pair_pct), r.summary.ratings.full_pair) : "HT нет"))}
+      ${row("Серверов по одному на ядро, каждый не медленнее 90%", (r) => fit(r, "isolated"))}
+      ${row("Серверов по два на ядро, каждый не медленнее 90%", (r) => (r.summary.has_pair ? fit(r, "packed") : "HT нет"))}
       ${row("Лаги при полной загрузке", (r) => valueWithRating(fmtTimes(r.summary.lag_ratio), r.summary.ratings.lag))}
     </tbody></table></div>`;
 
   app.innerHTML = `<h1>Сравнение</h1>
-    <p class="sub">Проценты на графиках — от скорости ядра своей же машины на пустой машине. Абсолютную скорость ядер сравнивает строка «Скорость ядра относительно…».</p>
+    <p class="sub">Проценты — от скорости потока своей же машины на пустой машине. Абсолютную скорость ядер сравнивает строка «Скорость ядра относительно…».</p>
     ${diff.length ? `<div class="notice">Прогоны сделаны с разными настройками — сравнивать напрямую нельзя: различаются ${diff.map((k) => paramNames[k]).join(", ")}.</div>` : ""}
     ${table}
-    <h2>1 сервер на ядро: скорость по мере загрузки остальных ядер</h2>
+    <h2>По одному серверу на ядро: скорость каждого по числу серверов на ноде</h2>
     <div class="panel"><div id="c1"></div></div>
-    <h2>2 сервера на ядро: скорость каждого по мере загрузки остальных ядер</h2>
+    <h2>По два сервера на ядро: скорость каждого по числу серверов на ноде</h2>
     <div class="panel"><div id="c2"></div></div>`;
 
-  const curves = runs.map((r) => r.summary.avg);
-  const m = mergeCurves(curves);
-  const draw = (el, field) => renderChart(el, {
-    xs: m.xs,
-    series: runs.map((r, i) => ({ name: name(r), color: colors[i], values: m.pick(curves[i], field) })),
-    xTitle: "загружено других ядер",
-    tooltipTitle: (x) => `загружено других ядер: ${x}`,
-  });
-  draw(app.querySelector("#c1"), "single");
-  if (runs.some((r) => r.summary.has_pair)) draw(app.querySelector("#c2"), "pair");
+  const draw = (el, field) => {
+    const lists = runs.map((r) => r.summary.node[field]);
+    const m = mergePoints(lists);
+    renderChart(el, {
+      xs: m.xs,
+      series: runs.map((r, i) => ({ name: name(r), color: colors[i], values: m.pick(lists[i]) })),
+      xTitle: "серверов на ноде",
+      tooltipTitle: (x) => `серверов на ноде: ${x}`,
+    });
+  };
+  draw(app.querySelector("#c1"), "isolated");
+  if (runs.some((r) => r.summary.has_pair)) draw(app.querySelector("#c2"), "packed");
   else app.querySelector("#c2").innerHTML = '<p class="muted">HT нет ни на одной из машин.</p>';
 }

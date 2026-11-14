@@ -290,7 +290,11 @@ func driftWarning(cores []Core) string {
 	if freq*2 >= len(ids) {
 		reason = "разная частота: турбобуст зависит от фоновой нагрузки на машине"
 	}
-	return fmt.Sprintf("на ядрах %s: скорость в начале и в конце теста различается до %s%% (%s); за 100%% взято среднее двух замеров",
+	where := "на ядрах"
+	if len(ids) == 1 {
+		where = "на ядре"
+	}
+	return fmt.Sprintf(where+" %s: скорость в начале и в конце теста различается до %s%% (%s); за 100%% взято среднее двух замеров",
 		strings.Join(ids, ", "), strings.Replace(fmt.Sprintf("%.1f", worst), ".", ",", 1), reason)
 }
 

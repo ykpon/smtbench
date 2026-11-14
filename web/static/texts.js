@@ -40,8 +40,10 @@ export function valueWithRating(text, r) {
 
 export const metricText = {
   solo_pct: "Скорость ядра (100% — типичное ядро этой машины)",
-  ht_per_thread_pct: "2 сервера на ядре: скорость каждого",
-  full_single_pct: "1 сервер на ядро, машина загружена целиком",
+  ht_a_pct: "1-й поток, когда нагружен 2-й",
+  ht_b_pct: "2-й поток, когда нагружен 1-й",
+  full_single_pct: "Нода забита по одному серверу на ядро",
+  full_pair_pct: "Нода забита по два сервера на ядро",
 };
 
 export const modeText = { single: "1 сервер на ядро", pair: "2 сервера на ядро", solo_b: "второй поток", final: "повтор" };
