@@ -94,7 +94,7 @@ func TestWeakAndDrift(t *testing.T) {
 	}
 	found := false
 	for _, w := range s.Warnings {
-		found = found || strings.Contains(w, "ядро 0")
+		found = found || strings.Contains(w, "ядрах 0:")
 	}
 	if !found {
 		t.Fatalf("warnings %v", s.Warnings)
@@ -169,8 +169,41 @@ func TestWarningsUseDecimalComma(t *testing.T) {
 		{0, "final", 0, 0, []float64{838}, nil, 0, false},
 	}))
 	for _, w := range s.Warnings {
-		if strings.Contains(w, "16.2") || (strings.Contains(w, "ядро 0") && !strings.Contains(w, "16,2%")) {
+		if strings.Contains(w, "16.2") || (strings.Contains(w, "ядрах 0") && !strings.Contains(w, "16,2%")) {
 			t.Fatalf("warning %q", w)
 		}
+	}
+}
+
+func TestBaseAveragesFinal(t *testing.T) {
+	s := Compute(mkRun([]pt{
+		{0, "single", 0, 0, []float64{1000}, nil, 0, false},
+		{0, "solo_b", 0, 0, []float64{1050}, nil, 0, false},
+		{0, "pair", 0, 0, []float64{1050, 1050}, nil, 0, false},
+		{0, "final", 0, 0, []float64{1100}, nil, 0, false},
+	}))
+	if !approx(s.Cores[0].BaseTPS, 1050) || !approx(s.HTPerThreadPct, 100) {
+		t.Fatalf("base %v ht %v", s.Cores[0].BaseTPS, s.HTPerThreadPct)
+	}
+}
+
+func TestDriftWarningAggregated(t *testing.T) {
+	var pts []pt
+	for c := 0; c < 3; c++ {
+		pts = append(pts, pt{c, "single", 0, 0, []float64{1000}, nil, 3600, false},
+			pt{c, "final", 0, 0, []float64{1000 + 30*float64(c+2)}, nil, 3900, false})
+	}
+	s := Compute(mkRun(pts))
+	n := 0
+	for _, w := range s.Warnings {
+		if strings.Contains(w, "ядрах") {
+			n++
+			if !strings.Contains(w, "ядрах 0, 1, 2:") || !strings.Contains(w, "до 12,0%") || !strings.Contains(w, "частот") {
+				t.Fatalf("warning %q", w)
+			}
+		}
+	}
+	if n != 1 {
+		t.Fatalf("drift warnings %d: %v", n, s.Warnings)
 	}
 }

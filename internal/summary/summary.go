@@ -74,6 +74,7 @@ type Core struct {
 	DriftPct       float64 `json:"drift_pct"`
 	Weak           bool    `json:"weak"`
 	Drift          bool    `json:"drift"`
+	DriftFreq      bool    `json:"drift_freq"`
 	Noisy          bool    `json:"noisy"`
 	Curve          Curve   `json:"curve"`
 }
@@ -193,14 +194,14 @@ func Compute(r *result.Run) Summary {
 		if c.Weak {
 			s.WeakCores = append(s.WeakCores, c.Core)
 		}
-		if c.Drift {
-			s.Warnings = append(s.Warnings, fmt.Sprintf("ядро %d: скорость в начале и в конце теста различается на %s%% (нагрев или фоновая нагрузка)", c.Core, strings.Replace(fmt.Sprintf("%.1f", c.DriftPct), ".", ",", 1)))
-		}
 		ht = append(ht, c.HTPerThreadPct)
 		htTotal = append(htTotal, c.HTTotalPct)
 		fullS = append(fullS, c.FullSinglePct)
 		fullP = append(fullP, c.FullPairPct)
 		lag = append(lag, c.LagRatio)
+	}
+	if w := driftWarning(s.Cores); w != "" {
+		s.Warnings = append(s.Warnings, w)
 	}
 	s.HTPerThreadPct, s.HTTotalPct = mean(ht), mean(htTotal)
 	s.FullSinglePct, s.FullPairPct, s.LagRatio = mean(fullS), mean(fullP), mean(lag)
@@ -237,6 +238,32 @@ func Compute(r *result.Run) Summary {
 	return s
 }
 
+// driftWarning describes all cores whose speed at the start and end of their
+// ramp differs by more than driftPct, in one sentence.
+func driftWarning(cores []Core) string {
+	var ids []string
+	worst := 0.0
+	freq := 0
+	for _, c := range cores {
+		if c.Drift {
+			ids = append(ids, fmt.Sprint(c.Core))
+			worst = max(worst, c.DriftPct)
+			if c.DriftFreq {
+				freq++
+			}
+		}
+	}
+	if len(ids) == 0 {
+		return ""
+	}
+	reason := "нагрев или фоновая нагрузка"
+	if freq*2 >= len(ids) {
+		reason = "разная частота: турбобуст зависит от фоновой нагрузки на машине"
+	}
+	return fmt.Sprintf("на ядрах %s: скорость в начале и в конце теста различается до %s%% (%s); за 100%% взято среднее двух замеров",
+		strings.Join(ids, ", "), strings.Replace(fmt.Sprintf("%.1f", worst), ".", ",", 1), reason)
+}
+
 func tps(p result.Point, ok bool, i int) float64 {
 	if !ok || i >= len(p.Threads) {
 		return -1
@@ -248,6 +275,18 @@ func computeCore(id int, pts map[key]result.Point) Core {
 	c := Core{Core: id, HTPerThreadPct: -1, HTTotalPct: -1, FullSinglePct: -1, FullPairPct: -1, LagRatio: -1}
 	single0, okS := pts[key{"single", 0}]
 	c.BaseTPS = tps(single0, okS, 0)
+	// The final point repeats single k=0 after the ramp. Turbo frequency on a
+	// live machine moves between the two, so the base is their average and the
+	// difference is reported as drift.
+	if final, ok := pts[key{"final", 0}]; ok && c.BaseTPS > 0 && len(final.Threads) > 0 {
+		s0, f := c.BaseTPS, final.Threads[0].TicksPerSec
+		c.DriftPct = 100 * math.Abs(f-s0) / s0
+		c.Drift = c.DriftPct > driftPct
+		if m0, m1 := single0.Threads[0].MHz, final.Threads[0].MHz; m0 > 0 && m1 > 0 {
+			c.DriftFreq = 100*math.Abs(m1-m0)/m0 > driftPct
+		}
+		c.BaseTPS = (s0 + f) / 2
+	}
 	soloB, okB := pts[key{"solo_b", 0}]
 	baseB := tps(soloB, okB, 0)
 	if baseB < 0 {
@@ -263,10 +302,6 @@ func computeCore(id int, pts map[key]result.Point) Core {
 	if pair0, ok := pts[key{"pair", 0}]; ok && len(pair0.Threads) == 2 {
 		c.HTPerThreadPct = perThread(pair0)
 		c.HTTotalPct = pct(pair0.Threads[0].TicksPerSec+pair0.Threads[1].TicksPerSec, c.BaseTPS)
-	}
-	if final, ok := pts[key{"final", 0}]; ok && c.BaseTPS > 0 {
-		c.DriftPct = 100 * math.Abs(tps(final, ok, 0)-c.BaseTPS) / c.BaseTPS
-		c.Drift = c.DriftPct > driftPct
 	}
 
 	ks := map[int]bool{}
