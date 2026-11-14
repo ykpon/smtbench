@@ -14,10 +14,10 @@ const Version = 1
 // Iterations per unit, calibrated on the reference machine (see calibrate_test.go).
 // Changing any of them requires Version++.
 const (
-	intItersPerUnit = 1000
-	fpItersPerUnit  = 200
-	avxItersPerUnit = 200
-	memItersPerUnit = 10
+	intItersPerUnit = 94
+	fpItersPerUnit  = 82
+	avxItersPerUnit = 438
+	memItersPerUnit = 11
 )
 
 var ErrUnsupported = errors.New("не поддерживается этим процессором")
