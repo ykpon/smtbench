@@ -1,0 +1,5 @@
+dist/
+.git/
+.superpowers/
+*.json
+!internal/**/testdata/*.json

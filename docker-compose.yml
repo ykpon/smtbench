@@ -1,0 +1,12 @@
+services:
+  smtbench:
+    build: .
+    image: smtbench-server:latest
+    ports:
+      - "${SMTBENCH_PORT:-8080}:8080"
+    volumes:
+      - smtbench-data:/data
+    restart: unless-stopped
+
+volumes:
+  smtbench-data: {}
