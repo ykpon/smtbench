@@ -38,5 +38,5 @@ func Detect() (*Topology, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ParseGLPIEx(buf)
+	return withCPUName(ParseGLPIEx(buf))
 }
