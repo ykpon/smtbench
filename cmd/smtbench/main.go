@@ -31,6 +31,10 @@ func main() {
 		code = cmdTopo(args)
 	case "profiles":
 		code = cmdProfiles(args)
+	case "run":
+		code = cmdRun(args)
+	case "send":
+		code = cmdSend(args)
 	case "version":
 		fmt.Println(buildinfo.Version)
 	case "help", "-h", "--help":

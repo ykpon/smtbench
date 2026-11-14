@@ -1,0 +1,1498 @@
+{
+ "schema_version": 1,
+ "kernels_version": 1,
+ "tool_version": "dev",
+ "run_id": "d7551ab9ed6fd48cdd56e8a3f5217778",
+ "label": "xeon-e5-2667v2",
+ "hostname": "xeon-e5-2667v2",
+ "os": "linux",
+ "started_at": "2026-11-14T17:12:00.183100424Z",
+ "finished_at": "2026-11-14T17:12:49.88863546Z",
+ "partial": false,
+ "cpu": {
+  "model": "Intel(R) Xeon(R) CPU E5-2667 v2 @ 3.30GHz",
+  "vendor": "GenuineIntel",
+  "features": [
+   "avx"
+  ],
+  "freq_source": "msr",
+  "logical": [
+   {
+    "id": 0,
+    "core": 0,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 1,
+    "core": 1,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 2,
+    "core": 2,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 3,
+    "core": 3,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 4,
+    "core": 4,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 5,
+    "core": 5,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 6,
+    "core": 6,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 7,
+    "core": 7,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 8,
+    "core": 8,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 9,
+    "core": 9,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 10,
+    "core": 10,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 11,
+    "core": 11,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 12,
+    "core": 12,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 13,
+    "core": 13,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 14,
+    "core": 14,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 15,
+    "core": 15,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 16,
+    "core": 0,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 17,
+    "core": 1,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 18,
+    "core": 2,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 19,
+    "core": 3,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 20,
+    "core": 4,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 21,
+    "core": 5,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 22,
+    "core": 6,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 23,
+    "core": 7,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 24,
+    "core": 8,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 25,
+    "core": 9,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 26,
+    "core": 10,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 27,
+    "core": 11,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 28,
+    "core": 12,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 29,
+    "core": 13,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   },
+   {
+    "id": 30,
+    "core": 14,
+    "package": 0,
+    "numa": 0,
+    "l3_group": 0
+   },
+   {
+    "id": 31,
+    "core": 15,
+    "package": 1,
+    "numa": 1,
+    "l3_group": 1
+   }
+  ],
+  "cores": [
+   {
+    "id": 0,
+    "package": 0,
+    "l3_group": 0,
+    "threads": [
+     0,
+     16
+    ]
+   },
+   {
+    "id": 1,
+    "package": 1,
+    "l3_group": 1,
+    "threads": [
+     1,
+     17
+    ]
+   },
+   {
+    "id": 2,
+    "package": 0,
+    "l3_group": 0,
+    "threads": [
+     2,
+     18
+    ]
+   },
+   {
+    "id": 3,
+    "package": 1,
+    "l3_group": 1,
+    "threads": [
+     3,
+     19
+    ]
+   },
+   {
+    "id": 4,
+    "package": 0,
+    "l3_group": 0,
+    "threads": [
+     4,
+     20
+    ]
+   },
+   {
+    "id": 5,
+    "package": 1,
+    "l3_group": 1,
+    "threads": [
+     5,
+     21
+    ]
+   },
+   {
+    "id": 6,
+    "package": 0,
+    "l3_group": 0,
+    "threads": [
+     6,
+     22
+    ]
+   },
+   {
+    "id": 7,
+    "package": 1,
+    "l3_group": 1,
+    "threads": [
+     7,
+     23
+    ]
+   },
+   {
+    "id": 8,
+    "package": 0,
+    "l3_group": 0,
+    "threads": [
+     8,
+     24
+    ]
+   },
+   {
+    "id": 9,
+    "package": 1,
+    "l3_group": 1,
+    "threads": [
+     9,
+     25
+    ]
+   },
+   {
+    "id": 10,
+    "package": 0,
+    "l3_group": 0,
+    "threads": [
+     10,
+     26
+    ]
+   },
+   {
+    "id": 11,
+    "package": 1,
+    "l3_group": 1,
+    "threads": [
+     11,
+     27
+    ]
+   },
+   {
+    "id": 12,
+    "package": 0,
+    "l3_group": 0,
+    "threads": [
+     12,
+     28
+    ]
+   },
+   {
+    "id": 13,
+    "package": 1,
+    "l3_group": 1,
+    "threads": [
+     13,
+     29
+    ]
+   },
+   {
+    "id": 14,
+    "package": 0,
+    "l3_group": 0,
+    "threads": [
+     14,
+     30
+    ]
+   },
+   {
+    "id": 15,
+    "package": 1,
+    "l3_group": 1,
+    "threads": [
+     15,
+     31
+    ]
+   }
+  ],
+  "l3_groups": [
+   {
+    "id": 0,
+    "size_kb": 25600,
+    "package": 0,
+    "cores": [
+     0,
+     2,
+     4,
+     6,
+     8,
+     10,
+     12,
+     14
+    ],
+    "big": false
+   },
+   {
+    "id": 1,
+    "size_kb": 25600,
+    "package": 1,
+    "cores": [
+     1,
+     3,
+     5,
+     7,
+     9,
+     11,
+     13,
+     15
+    ],
+    "big": false
+   }
+  ],
+  "packages": 2
+ },
+ "params": {
+  "profile": "minecraft",
+  "mix": {
+   "fp": 10,
+   "int": 45,
+   "mem": 45
+  },
+  "mem_size_mb": 64,
+  "duration_ms": 1000,
+  "warmup_ms": 300,
+  "reps": 1,
+  "step": 4,
+  "order": "near",
+  "bg_threads": 2,
+  "modes": [
+   "single",
+   "pair"
+  ],
+  "cores": [
+   0,
+   1
+  ],
+  "noise_max_pct": 3
+ },
+ "points": [
+  {
+   "core": 0,
+   "mode": "single",
+   "loaded_cores": 0,
+   "loaded_cpus": [],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 9943.687628800732,
+     "tick_p50_us": 96.768,
+     "tick_p99_us": 125.44,
+     "tick_p999_us": 211.968,
+     "mhz": 3617.7524198541373
+    }
+   ],
+   "noise_pct": 0.38642926267560274,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 0,
+   "mode": "single",
+   "loaded_cores": 4,
+   "loaded_cpus": [
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24
+   ],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 10029.687999993454,
+     "tick_p50_us": 97.792,
+     "tick_p99_us": 111.104,
+     "tick_p999_us": 205.824,
+     "mhz": 3592.7307195964513
+    }
+   ],
+   "noise_pct": 1,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 0,
+   "mode": "single",
+   "loaded_cores": 7,
+   "loaded_cpus": [
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24,
+    10,
+    26,
+    12,
+    28,
+    14,
+    30
+   ],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 9858.457564734575,
+     "tick_p50_us": 98.816,
+     "tick_p99_us": 132.096,
+     "tick_p999_us": 209.92,
+     "mhz": 3591.179198909573
+    }
+   ],
+   "noise_pct": 4.166666666666667,
+   "retries": 2,
+   "noisy": true
+  },
+  {
+   "core": 0,
+   "mode": "single",
+   "loaded_cores": 8,
+   "loaded_cpus": [
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24,
+    10,
+    26,
+    12,
+    28,
+    14,
+    30,
+    1,
+    17
+   ],
+   "outside_l3": 1,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 9876.953042509,
+     "tick_p50_us": 98.816,
+     "tick_p99_us": 126.464,
+     "tick_p999_us": 218.112,
+     "mhz": 3592.440518644393
+    }
+   ],
+   "noise_pct": 5.1020408163265305,
+   "retries": 2,
+   "noisy": true
+  },
+  {
+   "core": 0,
+   "mode": "single",
+   "loaded_cores": 12,
+   "loaded_cpus": [
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24,
+    10,
+    26,
+    12,
+    28,
+    14,
+    30,
+    1,
+    17,
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25
+   ],
+   "outside_l3": 5,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 9957.547719469763,
+     "tick_p50_us": 98.816,
+     "tick_p99_us": 118.272,
+     "tick_p999_us": 156.672,
+     "mhz": 3586.9216922693754
+    }
+   ],
+   "noise_pct": 1.0309278350515463,
+   "retries": 1,
+   "noisy": false
+  },
+  {
+   "core": 0,
+   "mode": "single",
+   "loaded_cores": 15,
+   "loaded_cpus": [
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24,
+    10,
+    26,
+    12,
+    28,
+    14,
+    30,
+    1,
+    17,
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25,
+    11,
+    27,
+    13,
+    29,
+    15,
+    31
+   ],
+   "outside_l3": 8,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 9860.18657257562,
+     "tick_p50_us": 98.816,
+     "tick_p99_us": 122.368,
+     "tick_p999_us": 171.008,
+     "mhz": 3597.759121114052
+    }
+   ],
+   "noise_pct": 6.25,
+   "retries": 2,
+   "noisy": true
+  },
+  {
+   "core": 0,
+   "mode": "solo_b",
+   "loaded_cores": 0,
+   "loaded_cpus": [],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 16,
+     "ticks_per_sec": 9979.90680163796,
+     "tick_p50_us": 96.768,
+     "tick_p99_us": 127.488,
+     "tick_p999_us": 209.92,
+     "mhz": 3629.3060006733435
+    }
+   ],
+   "noise_pct": 0.30644157051014087,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 0,
+   "mode": "pair",
+   "loaded_cores": 0,
+   "loaded_cpus": [],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 8851.300810762563,
+     "tick_p50_us": 112.128,
+     "tick_p99_us": 144.384,
+     "tick_p999_us": 218.112,
+     "mhz": 3628.3035936125348
+    },
+    {
+     "cpu": 16,
+     "ticks_per_sec": 8853.365616786023,
+     "tick_p50_us": 112.128,
+     "tick_p99_us": 142.336,
+     "tick_p999_us": 224.256,
+     "mhz": 3628.610312452087
+    }
+   ],
+   "noise_pct": 0.27451083708672774,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 0,
+   "mode": "pair",
+   "loaded_cores": 4,
+   "loaded_cpus": [
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24
+   ],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 8870.531990565121,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 126.464,
+     "tick_p999_us": 209.92,
+     "mhz": 3593.258108634518
+    },
+    {
+     "cpu": 16,
+     "ticks_per_sec": 8914.482897376562,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 126.464,
+     "tick_p999_us": 216.064,
+     "mhz": 3592.2602306714193
+    }
+   ],
+   "noise_pct": 0.26169717794850555,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 0,
+   "mode": "pair",
+   "loaded_cores": 7,
+   "loaded_cpus": [
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24,
+    10,
+    26,
+    12,
+    28,
+    14,
+    30
+   ],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 8913.541377421625,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 123.392,
+     "tick_p999_us": 218.112,
+     "mhz": 3591.947703378333
+    },
+    {
+     "cpu": 16,
+     "ticks_per_sec": 8913.600753363322,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 124.416,
+     "tick_p999_us": 216.064,
+     "mhz": 3593.447305891301
+    }
+   ],
+   "noise_pct": 0.315245495613492,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 0,
+   "mode": "pair",
+   "loaded_cores": 8,
+   "loaded_cpus": [
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24,
+    10,
+    26,
+    12,
+    28,
+    14,
+    30,
+    1,
+    17
+   ],
+   "outside_l3": 1,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 8893.937760736846,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 128.512,
+     "tick_p999_us": 220.16,
+     "mhz": 3594.955512708798
+    },
+    {
+     "cpu": 16,
+     "ticks_per_sec": 8884.021123994069,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 128.512,
+     "tick_p999_us": 234.496,
+     "mhz": 3595.9853493593623
+    }
+   ],
+   "noise_pct": 0.3717631088157147,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 0,
+   "mode": "pair",
+   "loaded_cores": 12,
+   "loaded_cpus": [
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24,
+    10,
+    26,
+    12,
+    28,
+    14,
+    30,
+    1,
+    17,
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25
+   ],
+   "outside_l3": 5,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 8920.590797680487,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 125.44,
+     "tick_p999_us": 166.912,
+     "mhz": 3599.2323472328894
+    },
+    {
+     "cpu": 16,
+     "ticks_per_sec": 8906.532935669167,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 125.44,
+     "tick_p999_us": 177.152,
+     "mhz": 3599.1454142286793
+    }
+   ],
+   "noise_pct": 0.22702993567191854,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 0,
+   "mode": "pair",
+   "loaded_cores": 15,
+   "loaded_cpus": [
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24,
+    10,
+    26,
+    12,
+    28,
+    14,
+    30,
+    1,
+    17,
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25,
+    11,
+    27,
+    13,
+    29,
+    15,
+    31
+   ],
+   "outside_l3": 8,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 8609.648339344489,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 177.152,
+     "tick_p999_us": 651.264,
+     "mhz": 3599.8427461633805
+    },
+    {
+     "cpu": 16,
+     "ticks_per_sec": 8742.547555429428,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 146.432,
+     "tick_p999_us": 240.64,
+     "mhz": 3586.7834262157453
+    }
+   ],
+   "noise_pct": 1.457428169661834,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 0,
+   "mode": "final",
+   "loaded_cores": 0,
+   "loaded_cpus": [],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 0,
+     "ticks_per_sec": 10225.886168665444,
+     "tick_p50_us": 92.672,
+     "tick_p99_us": 122.368,
+     "tick_p999_us": 207.872,
+     "mhz": 3730.7066089525283
+    }
+   ],
+   "noise_pct": 1,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "single",
+   "loaded_cores": 0,
+   "loaded_cpus": [],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 10047.43942498577,
+     "tick_p50_us": 95.744,
+     "tick_p99_us": 124.416,
+     "tick_p999_us": 187.392,
+     "mhz": 3646.611826230092
+    }
+   ],
+   "noise_pct": 0.26886428165023846,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "single",
+   "loaded_cores": 4,
+   "loaded_cpus": [
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25
+   ],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 10034.0215596475,
+     "tick_p50_us": 98.816,
+     "tick_p99_us": 113.152,
+     "tick_p999_us": 203.776,
+     "mhz": 3591.805940550686
+    }
+   ],
+   "noise_pct": 0.4046860040613054,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "single",
+   "loaded_cores": 7,
+   "loaded_cpus": [
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25,
+    11,
+    27,
+    13,
+    29,
+    15,
+    31
+   ],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 9970.102046234006,
+     "tick_p50_us": 98.816,
+     "tick_p99_us": 125.44,
+     "tick_p999_us": 205.824,
+     "mhz": 3594.476988279395
+    }
+   ],
+   "noise_pct": 2.0202020202020203,
+   "retries": 1,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "single",
+   "loaded_cores": 8,
+   "loaded_cpus": [
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25,
+    11,
+    27,
+    13,
+    29,
+    15,
+    31,
+    0,
+    16
+   ],
+   "outside_l3": 1,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 9996.57325866561,
+     "tick_p50_us": 98.816,
+     "tick_p99_us": 119.296,
+     "tick_p999_us": 216.064,
+     "mhz": 3596.299177637018
+    }
+   ],
+   "noise_pct": 1,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "single",
+   "loaded_cores": 12,
+   "loaded_cpus": [
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25,
+    11,
+    27,
+    13,
+    29,
+    15,
+    31,
+    0,
+    16,
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24
+   ],
+   "outside_l3": 5,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 10032.966903680132,
+     "tick_p50_us": 98.816,
+     "tick_p99_us": 112.128,
+     "tick_p999_us": 150.528,
+     "mhz": 3598.6853268115638
+    }
+   ],
+   "noise_pct": 2,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "single",
+   "loaded_cores": 15,
+   "loaded_cpus": [
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25,
+    11,
+    27,
+    13,
+    29,
+    15,
+    31,
+    0,
+    16,
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24,
+    10,
+    26,
+    12,
+    28,
+    14,
+    30
+   ],
+   "outside_l3": 8,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 8006.906982552231,
+     "tick_p50_us": 112.128,
+     "tick_p99_us": 440.32,
+     "tick_p999_us": 1171.456,
+     "mhz": 3597.70546591221
+    }
+   ],
+   "noise_pct": 55.208333333333336,
+   "retries": 2,
+   "noisy": true
+  },
+  {
+   "core": 1,
+   "mode": "solo_b",
+   "loaded_cores": 0,
+   "loaded_cpus": [],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 17,
+     "ticks_per_sec": 10044.571399654777,
+     "tick_p50_us": 93.696,
+     "tick_p99_us": 125.44,
+     "tick_p999_us": 168.96,
+     "mhz": 3664.0459174357775
+    }
+   ],
+   "noise_pct": 1,
+   "retries": 1,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "pair",
+   "loaded_cores": 0,
+   "loaded_cpus": [],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 8919.76465789846,
+     "tick_p50_us": 108.032,
+     "tick_p99_us": 140.288,
+     "tick_p999_us": 189.44,
+     "mhz": 3650.404877489803
+    },
+    {
+     "cpu": 17,
+     "ticks_per_sec": 8946.782884181068,
+     "tick_p50_us": 108.032,
+     "tick_p99_us": 138.24,
+     "tick_p999_us": 191.488,
+     "mhz": 3650.1910180852274
+    }
+   ],
+   "noise_pct": 0.5170717024717497,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "pair",
+   "loaded_cores": 4,
+   "loaded_cpus": [
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25
+   ],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 8933.565715912358,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 126.464,
+     "tick_p999_us": 193.536,
+     "mhz": 3594.800834903118
+    },
+    {
+     "cpu": 17,
+     "ticks_per_sec": 8944.580822715525,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 123.392,
+     "tick_p999_us": 189.44,
+     "mhz": 3594.913278249789
+    }
+   ],
+   "noise_pct": 0.30968713478030097,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "pair",
+   "loaded_cores": 7,
+   "loaded_cpus": [
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25,
+    11,
+    27,
+    13,
+    29,
+    15,
+    31
+   ],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 8876.057403128407,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 128.512,
+     "tick_p999_us": 195.584,
+     "mhz": 3596.9331940070597
+    },
+    {
+     "cpu": 17,
+     "ticks_per_sec": 8887.12627684282,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 127.488,
+     "tick_p999_us": 201.728,
+     "mhz": 3596.3604785506986
+    }
+   ],
+   "noise_pct": 0.280120388605376,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "pair",
+   "loaded_cores": 8,
+   "loaded_cpus": [
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25,
+    11,
+    27,
+    13,
+    29,
+    15,
+    31,
+    0,
+    16
+   ],
+   "outside_l3": 1,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 8823.191014604961,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 166.912,
+     "tick_p999_us": 292.864,
+     "mhz": 3596.344969819532
+    },
+    {
+     "cpu": 17,
+     "ticks_per_sec": 8875.231838748918,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 132.096,
+     "tick_p999_us": 214.016,
+     "mhz": 3596.3935079680473
+    }
+   ],
+   "noise_pct": 0.33489654880969333,
+   "retries": 2,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "pair",
+   "loaded_cores": 12,
+   "loaded_cpus": [
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25,
+    11,
+    27,
+    13,
+    29,
+    15,
+    31,
+    0,
+    16,
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24
+   ],
+   "outside_l3": 5,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 8893.418755464381,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 128.512,
+     "tick_p999_us": 166.912,
+     "mhz": 3599.3193663501906
+    },
+    {
+     "cpu": 17,
+     "ticks_per_sec": 8729.356670454763,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 187.392,
+     "tick_p999_us": 481.28,
+     "mhz": 3588.2525124518784
+    }
+   ],
+   "noise_pct": 0.552536702634765,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "pair",
+   "loaded_cores": 15,
+   "loaded_cpus": [
+    3,
+    19,
+    5,
+    21,
+    7,
+    23,
+    9,
+    25,
+    11,
+    27,
+    13,
+    29,
+    15,
+    31,
+    0,
+    16,
+    2,
+    18,
+    4,
+    20,
+    6,
+    22,
+    8,
+    24,
+    10,
+    26,
+    12,
+    28,
+    14,
+    30
+   ],
+   "outside_l3": 8,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 8854.028377561845,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 128.512,
+     "tick_p999_us": 175.104,
+     "mhz": 3589.617263885862
+    },
+    {
+     "cpu": 17,
+     "ticks_per_sec": 8706.101084052041,
+     "tick_p50_us": 111.104,
+     "tick_p99_us": 164.864,
+     "tick_p999_us": 301.056,
+     "mhz": 3586.5194060520257
+    }
+   ],
+   "noise_pct": 1.5958574576185436,
+   "retries": 0,
+   "noisy": false
+  },
+  {
+   "core": 1,
+   "mode": "final",
+   "loaded_cores": 0,
+   "loaded_cpus": [],
+   "outside_l3": 0,
+   "threads": [
+    {
+     "cpu": 1,
+     "ticks_per_sec": 10321.64704189834,
+     "tick_p50_us": 92.672,
+     "tick_p99_us": 122.368,
+     "tick_p999_us": 177.152,
+     "mhz": 3742.9961778437923
+    }
+   ],
+   "noise_pct": 0.27551016956660623,
+   "retries": 0,
+   "noisy": false
+  }
+ ],
+ "warnings": []
+}
