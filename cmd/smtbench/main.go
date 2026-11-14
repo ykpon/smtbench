@@ -29,6 +29,8 @@ func main() {
 	switch os.Args[1] {
 	case "topo":
 		code = cmdTopo(args)
+	case "profiles":
+		code = cmdProfiles(args)
 	case "version":
 		fmt.Println(buildinfo.Version)
 	case "help", "-h", "--help":
