@@ -85,3 +85,10 @@ func NoSMT(n int) fstest.MapFS {
 	}
 	return m
 }
+
+//go:embed ryzen-5500x3d.glpiex.bin
+var ryzen5500X3D []byte
+
+// Ryzen5500X3D returns a raw GetLogicalProcessorInformationEx(RelationAll)
+// buffer captured on a Ryzen 5 5500X3D (6 cores, 12 threads, 96 MB L3).
+func Ryzen5500X3D() []byte { return ryzen5500X3D }
