@@ -58,7 +58,7 @@ func TestExecRunOK(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Partial || len(r.Points) != 34 || r.Label != "host" || r.CPU.Model == "" && len(r.CPU.Logical) == 0 {
+	if r.Partial || len(r.Points) != 49 || r.Label != "host" || r.CPU.Model == "" && len(r.CPU.Logical) == 0 {
 		t.Fatalf("%+v", r)
 	}
 	if !strings.Contains(out.String(), "http://c/#/run/x") {

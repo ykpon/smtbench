@@ -31,3 +31,18 @@ func TestSummaryShowsMHz(t *testing.T) {
 		}
 	}
 }
+
+func TestSummaryShowsThreadsAndDensity(t *testing.T) {
+	var b strings.Builder
+	s := summary.Summary{HasPair: true, HTPerThreadPct: 80, HTAPct: 82, HTBPct: 78, HTTotalPct: 160, KneeSingle: -1,
+		Node: summary.Node{Uniform: true,
+			Density:     []summary.Density{{MinPct: 90, Isolated: 12, Packed: 0}, {MinPct: 70, Isolated: 12, Packed: 24}},
+			Conclusions: []string{"вывод про плотность"}}}
+	Summary(&b, &result.Run{}, s)
+	out := b.String()
+	for _, want := range []string{"1-й поток 82%", "2-й поток 78%", "вместе 160%", "вывод про плотность", "не медленнее 90%", "12", "24", "ни одного"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %q in\n%s", want, out)
+		}
+	}
+}

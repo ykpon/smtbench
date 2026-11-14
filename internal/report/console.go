@@ -57,7 +57,11 @@ func Header(w io.Writer, t *topology.Topology, ws []plan.Window, p result.Params
 	fmt.Fprintf(w, "Профиль: %s (%s) · ядер в тесте: %d · окон: %d · замер %s + прогрев %s\n",
 		p.Profile, mixString(p.Mix), len(cores), len(ws),
 		Duration(time.Duration(p.DurationMS)*time.Millisecond), Duration(time.Duration(p.WarmupMS)*time.Millisecond))
-	fmt.Fprintf(w, "Порядок загрузки: %s · фоновые ядра грузятся потоками: %d\n", p.Order, p.BgThreads)
+	bg := "так же, как тестируемое (1 или 2 потока)"
+	if p.BgThreads != 0 {
+		bg = fmt.Sprintf("потоков на ядро: %d", p.BgThreads)
+	}
+	fmt.Fprintf(w, "Порядок загрузки: %s · соседние ядра загружаются %s\n", p.Order, bg)
 	fmt.Fprintf(w, "Оценка времени: ~%s\n\n", Duration(est))
 }
 
@@ -72,10 +76,10 @@ func mixString(m map[string]int) string {
 }
 
 var modeText = map[plan.Mode]string{
-	plan.Single: "1 сервер ",
-	plan.SoloB:  "поток B  ",
-	plan.Pair:   "2 сервера",
-	plan.Final:  "повтор   ",
+	plan.Single: "1-й поток один",
+	plan.SoloB:  "2-й поток один",
+	plan.Pair:   "оба потока    ",
+	plan.Final:  "повтор        ",
 }
 
 // Printer prints one progress line per window, showing speed as a share
@@ -127,36 +131,58 @@ func rated(s summary.Summary, key string) string {
 	return ""
 }
 
+func round(v float64) int { return int(math.Round(v)) }
+
+func countOrNone(n int) string {
+	if n <= 0 {
+		return "ни одного"
+	}
+	return strconv.Itoa(n)
+}
+
 func Summary(w io.Writer, r *result.Run, s summary.Summary) {
 	fmt.Fprintf(w, "\nИтог (%s, профиль %s):\n", r.Label, r.Params.Profile)
 	if s.BaselineTPS > 0 {
-		fmt.Fprintf(w, "  Скорость одного ядра на пустой машине: %s тиков/с — это 100%%\n", Int(s.BaselineTPS))
+		fmt.Fprintf(w, "  Скорость одного потока ядра на пустой машине: %s тиков/с — это 100%%\n", Int(s.BaselineTPS))
 	}
 	if s.HasPair && s.HTPerThreadPct >= 0 {
-		fmt.Fprintf(w, "  2 сервера на одном ядре: каждый получает %d%%, ядро в сумме даёт %d%%%s\n",
-			int(math.Round(s.HTPerThreadPct)), int(math.Round(s.HTTotalPct)), rated(s, "ht"))
+		fmt.Fprintf(w, "  Оба потока одного ядра нагружены, остальные ядра свободны: 1-й поток %d%%, 2-й поток %d%%, вместе %d%%%s\n",
+			round(s.HTAPct), round(s.HTBPct), round(s.HTTotalPct), rated(s, "ht"))
 	}
-	if s.FullSinglePct >= 0 {
-		fmt.Fprintf(w, "  1 сервер на ядро, машина загружена целиком: %d%%%s\n", int(math.Round(s.FullSinglePct)), rated(s, "full_single"))
+	if s.Node.Uniform && len(s.Node.Conclusions) > 0 {
+		for _, c := range s.Node.Conclusions {
+			fmt.Fprintf(w, "  %s\n", c)
+		}
+	} else {
+		if s.FullSinglePct >= 0 {
+			fmt.Fprintf(w, "  1 сервер на ядре, остальные ядра загружены: %d%%%s\n", round(s.FullSinglePct), rated(s, "full_single"))
+		}
+		if s.HasPair && s.FullPairPct >= 0 {
+			fmt.Fprintf(w, "  2 сервера на ядре, остальные ядра загружены: каждый %d%%%s\n", round(s.FullPairPct), rated(s, "full_pair"))
+		}
 	}
-	if s.HasPair && s.FullPairPct >= 0 {
-		fmt.Fprintf(w, "  2 сервера на ядро, машина загружена целиком: каждый %d%%%s\n", int(math.Round(s.FullPairPct)), rated(s, "full_pair"))
+	if len(s.Node.Density) > 0 {
+		fmt.Fprintln(w, "  Сколько серверов помещается на ноду, чтобы каждый работал:")
+		for _, d := range s.Node.Density {
+			line := fmt.Sprintf("    не медленнее %d%%: по одному на ядро — %s", d.MinPct, countOrNone(d.Isolated))
+			if s.HasPair {
+				line += fmt.Sprintf(", по два на ядро — %s", countOrNone(d.Packed))
+			}
+			fmt.Fprintln(w, line)
+		}
 	}
 	if s.LagRatio > 0 {
 		fmt.Fprintf(w, "  Лаги при полной загрузке: самые долгие тики в %s раза длиннее%s\n", Dec(s.LagRatio), rated(s, "lag"))
 	}
 	if s.HasFreq && s.MHzIdle > 0 {
-		line := fmt.Sprintf("  Частота ядра: %d МГц на пустой машине", int(math.Round(s.MHzIdle)))
+		line := fmt.Sprintf("  Частота ядра: %d МГц на пустой машине", round(s.MHzIdle))
 		if s.MHzFullSingle > 0 {
-			line += fmt.Sprintf(", %d МГц при полной загрузке (1 сервер на ядро)", int(math.Round(s.MHzFullSingle)))
+			line += fmt.Sprintf(", %d МГц при полной загрузке (1 сервер на ядро)", round(s.MHzFullSingle))
 		}
 		if s.HasPair && s.MHzFullPair > 0 {
-			line += fmt.Sprintf(", %d МГц (2 сервера на ядро)", int(math.Round(s.MHzFullPair)))
+			line += fmt.Sprintf(", %d МГц (2 сервера на ядро)", round(s.MHzFullPair))
 		}
 		fmt.Fprintln(w, line)
-	}
-	if s.KneeSingle >= 0 {
-		fmt.Fprintf(w, "  Просадка меньше 5%%, пока загружено не больше %d других ядер\n", s.KneeSingle)
 	}
 	if len(s.WeakCores) > 0 {
 		var ids []string

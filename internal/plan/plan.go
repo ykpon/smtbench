@@ -18,7 +18,7 @@ type Mode string
 
 const (
 	Single Mode = "single" // thread A measured, thread B idle
-	SoloB  Mode = "solo_b" // thread B measured, thread A idle, k = 0
+	SoloB  Mode = "solo_b" // thread B measured, thread A idle
 	Pair   Mode = "pair"   // both threads measured
 	Final  Mode = "final"  // repeat of single k = 0 to detect drift
 )
@@ -95,15 +95,15 @@ func validate(t *topology.Topology, p result.Params) error {
 		return errors.New("не выбран ни один режим (--modes single,pair)")
 	}
 	for _, m := range p.Modes {
-		if m != "single" && m != "pair" {
-			return fmt.Errorf("неизвестный режим %q, доступны single и pair", m)
+		if m != "single" && m != "solo_b" && m != "pair" {
+			return fmt.Errorf("неизвестный режим %q, доступны single, solo_b и pair", m)
 		}
 	}
 	if p.Order != "near" && p.Order != "far" {
 		return fmt.Errorf("порядок должен быть near или far, получено %q", p.Order)
 	}
-	if p.BgThreads != 1 && p.BgThreads != 2 {
-		return fmt.Errorf("--bg-threads должен быть 1 или 2, получено %d", p.BgThreads)
+	if p.BgThreads < 0 || p.BgThreads > 2 {
+		return fmt.Errorf("--bg-threads должен быть auto, 1 или 2, получено %d", p.BgThreads)
 	}
 	if p.Step < 1 {
 		return errors.New("--step должен быть не меньше 1")
@@ -128,6 +128,7 @@ func Build(t *topology.Topology, p result.Params) ([]Window, error) {
 	}
 	doSingle := slices.Contains(p.Modes, "single")
 	doPair := slices.Contains(p.Modes, "pair")
+	doSoloB := slices.Contains(p.Modes, "solo_b")
 
 	var ws []Window
 	for _, id := range targets {
@@ -137,9 +138,10 @@ func Build(t *topology.Topology, p result.Params) ([]Window, error) {
 
 		at := func(mode Mode, k int, measure []int) Window {
 			w := Window{Core: id, Mode: mode, Measure: measure, LoadedCores: k, Bg: []int{}}
+			bg := BgThreads(p, mode)
 			for _, oc := range order[:k] {
 				c, _ := t.CoreByID(oc)
-				w.Bg = append(w.Bg, c.Threads[:min(p.BgThreads, len(c.Threads))]...)
+				w.Bg = append(w.Bg, c.Threads[:min(bg, len(c.Threads))]...)
 				if c.L3 != core.L3 {
 					w.OutsideL3++
 				}
@@ -153,8 +155,16 @@ func Build(t *topology.Topology, p result.Params) ([]Window, error) {
 				ws = append(ws, at(Single, k, a))
 			}
 		}
-		if doPair && smt {
+		switch {
+		case smt && doSoloB:
+			for _, k := range ks {
+				ws = append(ws, at(SoloB, k, core.Threads[1:2]))
+			}
+		case smt && doPair:
+			// still needed as the 100% reference for thread B
 			ws = append(ws, at(SoloB, 0, core.Threads[1:2]))
+		}
+		if doPair && smt {
 			for _, k := range ks {
 				ws = append(ws, at(Pair, k, core.Threads[:2]))
 			}
@@ -169,4 +179,17 @@ func Build(t *topology.Topology, p result.Params) ([]Window, error) {
 func Estimate(ws []Window, p result.Params) time.Duration {
 	per := time.Duration(p.WarmupMS+p.DurationMS) * time.Millisecond
 	return time.Duration(len(ws)*max(p.Reps, 1)) * per
+}
+
+// BgThreads is how many threads of each background core are loaded in a mode.
+// With p.BgThreads == 0 (auto) neighbours are loaded like the tested core:
+// one thread when one thread is measured, both in pair mode.
+func BgThreads(p result.Params, mode Mode) int {
+	if p.BgThreads != 0 {
+		return p.BgThreads
+	}
+	if mode == Pair {
+		return 2
+	}
+	return 1
 }

@@ -17,7 +17,7 @@ func TestParseRunFlagsDefaults(t *testing.T) {
 	}
 	p := o.Params
 	if p.Profile != "int" || p.DurationMS != 3000 || p.WarmupMS != 1000 || p.Reps != 1 || p.Step != 1 ||
-		p.Order != "near" || p.BgThreads != 2 || !reflect.DeepEqual(p.Modes, []string{"single", "pair"}) ||
+		p.Order != "near" || p.BgThreads != 0 || !reflect.DeepEqual(p.Modes, []string{"single", "solo_b", "pair"}) ||
 		p.NoiseMaxPct != 3 || o.Label != "host1" || p.Cores != nil {
 		t.Fatalf("%+v label %q", p, o.Label)
 	}
@@ -42,6 +42,14 @@ func TestParseRunFlags(t *testing.T) {
 	o, _ = parseRunFlags([]string{"--profile", "minecraft", "--mem-size", "1GB"}, "h")
 	if o.MemBytes != 1<<30 || o.Params.MemSizeMB != 1024 {
 		t.Fatalf("mem-size override %d", o.MemBytes)
+	}
+	o, err = parseRunFlags([]string{"--bg-threads", "2", "--modes", "single,pair"}, "h")
+	if err != nil || o.Params.BgThreads != 2 || len(o.Params.Modes) != 2 {
+		t.Fatalf("%+v %v", o.Params, err)
+	}
+	o, err = parseRunFlags([]string{"--bg-threads", "auto"}, "h")
+	if err != nil || o.Params.BgThreads != 0 {
+		t.Fatalf("%+v %v", o.Params, err)
 	}
 	o, _ = parseRunFlags([]string{"--duration", "1s", "--warmup", "300ms", "--send", "http://x:8080", "--dry-run"}, "h")
 	if o.Params.DurationMS != 1000 || o.Params.WarmupMS != 300 || o.Send != "http://x:8080" || !o.DryRun {

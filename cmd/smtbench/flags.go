@@ -45,10 +45,10 @@ func parseRunFlags(args []string, hostname string) (runOpts, error) {
 	warmup := fs.Duration("warmup", time.Second, "прогрев перед замером")
 	reps := fs.Int("reps", 1, "повторы окна (берётся медиана)")
 	cores := fs.String("cores", "", "какие ядра тестировать, например 0-3,8 (по умолчанию все)")
-	modes := fs.String("modes", "single,pair", "режимы: single, pair")
+	modes := fs.String("modes", "single,solo_b,pair", "что мерить: single (1-й поток ядра один), solo_b (2-й поток один), pair (оба потока вместе)")
 	step := fs.Int("step", 1, "шаг нарастания нагрузки, в ядрах")
 	order := fs.String("order", "near", "порядок загрузки: near (сначала свой чиплет) или far")
-	bgThreads := fs.Int("bg-threads", 2, "сколько потоков грузить у фоновых ядер: 2 или 1")
+	bgThreads := fs.String("bg-threads", "auto", "сколько потоков грузить у соседних ядер: auto (как у тестируемого ядра), 1 или 2")
 	noiseMax := fs.Float64("noise-max", 3, "порог помех, %")
 	label := fs.String("label", hostname, "имя ноды в интерфейсе")
 	out := fs.String("out", "", "файл результата (по умолчанию smtbench-<label>-<дата>.json)")
@@ -106,13 +106,14 @@ func parseRunFlags(args []string, hostname string) (runOpts, error) {
 	if *order != "near" && *order != "far" {
 		return o, fmt.Errorf("--order должен быть near или far, получено %q", *order)
 	}
-	if *bgThreads != 1 && *bgThreads != 2 {
-		return o, fmt.Errorf("--bg-threads должен быть 1 или 2, получено %d", *bgThreads)
+	bg, ok := map[string]int{"auto": 0, "1": 1, "2": 2}[*bgThreads]
+	if !ok {
+		return o, fmt.Errorf("--bg-threads должен быть auto, 1 или 2, получено %q", *bgThreads)
 	}
 	for _, m := range strings.Split(*modes, ",") {
 		m = strings.TrimSpace(m)
-		if m != "single" && m != "pair" {
-			return o, fmt.Errorf("неизвестный режим %q, доступны single и pair", m)
+		if m != "single" && m != "solo_b" && m != "pair" {
+			return o, fmt.Errorf("неизвестный режим %q, доступны single, solo_b и pair", m)
 		}
 		p.Modes = append(p.Modes, m)
 	}
@@ -125,7 +126,7 @@ func parseRunFlags(args []string, hostname string) (runOpts, error) {
 	}
 	p.DurationMS = int(duration.Milliseconds())
 	p.WarmupMS = int(warmup.Milliseconds())
-	p.Reps, p.Step, p.Order, p.BgThreads, p.NoiseMaxPct = *reps, *step, *order, *bgThreads, *noiseMax
+	p.Reps, p.Step, p.Order, p.BgThreads, p.NoiseMaxPct = *reps, *step, *order, bg, *noiseMax
 	return o, nil
 }
 

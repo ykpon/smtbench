@@ -25,7 +25,7 @@ func xeon(t *testing.T) *topology.Topology {
 }
 
 func defaults() result.Params {
-	return result.Params{DurationMS: 3000, WarmupMS: 1000, Reps: 1, Step: 1, Order: "near", BgThreads: 2, Modes: []string{"single", "pair"}}
+	return result.Params{DurationMS: 3000, WarmupMS: 1000, Reps: 1, Step: 1, Order: "near", BgThreads: 0, Modes: []string{"single", "solo_b", "pair"}}
 }
 
 func TestLoadOrderXeonNear(t *testing.T) {
@@ -81,7 +81,7 @@ func TestBuildXeonDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ws) != 16*(16+1+16+1) {
+	if len(ws) != 16*(16+16+16+1) {
 		t.Fatalf("windows %d", len(ws))
 	}
 	w0 := ws[0]
@@ -89,10 +89,12 @@ func TestBuildXeonDefaults(t *testing.T) {
 		t.Fatalf("first %+v", w0)
 	}
 	var soloB, pair, final *Window
-	for i := range ws[:34] {
+	for i := range ws[:49] {
 		switch ws[i].Mode {
 		case SoloB:
-			soloB = &ws[i]
+			if soloB == nil {
+				soloB = &ws[i]
+			}
 		case Pair:
 			if pair == nil {
 				pair = &ws[i]
@@ -105,11 +107,11 @@ func TestBuildXeonDefaults(t *testing.T) {
 		t.Fatalf("soloB %+v pair %+v final %+v", soloB, pair, final)
 	}
 	last := ws[15] // single, k=15
-	if last.LoadedCores != 15 || len(last.Bg) != 30 || last.OutsideL3 != 8 {
+	if last.LoadedCores != 15 || len(last.Bg) != 15 || last.OutsideL3 != 8 {
 		t.Fatalf("single kmax %+v", last)
 	}
-	if ws[33].Mode != Final || ws[34].Core != 1 {
-		t.Fatalf("ordering: %+v %+v", ws[33], ws[34])
+	if ws[48].Mode != Final || ws[49].Core != 1 {
+		t.Fatalf("ordering: %+v %+v", ws[48], ws[49])
 	}
 }
 
@@ -176,14 +178,14 @@ func TestBuildCoresFilter(t *testing.T) {
 			t.Fatalf("core %d", w.Core)
 		}
 	}
-	if len(ws) != 2*34 {
+	if len(ws) != 2*49 {
 		t.Fatalf("windows %d", len(ws))
 	}
 }
 
 func TestEstimate(t *testing.T) {
 	ws, _ := Build(xeon(t), defaults())
-	if d := Estimate(ws, defaults()); d != 36*time.Minute+16*time.Second {
+	if d := Estimate(ws, defaults()); d != 52*time.Minute+16*time.Second {
 		t.Fatalf("estimate %v", d)
 	}
 }
@@ -202,6 +204,44 @@ func TestBuildErrors(t *testing.T) {
 		m(&p)
 		if _, err := Build(top, p); err == nil {
 			t.Errorf("%s: expected error", name)
+		}
+	}
+}
+
+// With bg-threads auto, neighbours are loaded the same way as the tested core.
+func TestBuildBgAuto(t *testing.T) {
+	ws, _ := Build(xeon(t), defaults())
+	seen := map[Mode]int{}
+	for _, w := range ws {
+		if w.Core == 0 && w.LoadedCores == 3 {
+			seen[w.Mode] = len(w.Bg)
+		}
+	}
+	if seen[Single] != 3 || seen[SoloB] != 3 || seen[Pair] != 6 {
+		t.Fatalf("bg cpus at k=3: %v", seen)
+	}
+}
+
+func TestBuildBgForced2(t *testing.T) {
+	p := defaults()
+	p.BgThreads = 2
+	ws, _ := Build(xeon(t), p)
+	if w := ws[3]; w.Mode != Single || w.LoadedCores != 3 || len(w.Bg) != 6 {
+		t.Fatalf("%+v", w)
+	}
+}
+
+// Without solo_b in modes, thread B alone is measured only on the idle machine.
+func TestBuildWithoutSoloBRamp(t *testing.T) {
+	p := defaults()
+	p.Modes = []string{"single", "pair"}
+	ws, _ := Build(xeon(t), p)
+	if len(ws) != 16*(16+1+16+1) {
+		t.Fatalf("windows %d", len(ws))
+	}
+	for _, w := range ws {
+		if w.Mode == SoloB && w.LoadedCores != 0 {
+			t.Fatalf("%+v", w)
 		}
 	}
 }

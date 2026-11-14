@@ -23,6 +23,12 @@ func mkRun(pts []pt) *result.Run {
 	r := &result.Run{SchemaVersion: 1, RunID: strings.Repeat("a", 32)}
 	for _, p := range pts {
 		rp := result.Point{Core: p.core, Mode: p.mode, LoadedCores: p.k, OutsideL3: p.outside, Noisy: p.noisy}
+		// neighbours are loaded like the tested core: 1 thread, or 2 in pair mode
+		bg := p.k
+		if p.mode == "pair" {
+			bg = 2 * p.k
+		}
+		rp.LoadedCPUs = make([]int, bg)
 		for i, v := range p.tps {
 			p99 := 100.0
 			if i < len(p.p99) {
@@ -232,5 +238,111 @@ func TestFrequencyMissing(t *testing.T) {
 	s := Compute(mkRun([]pt{{0, "single", 0, 0, []float64{1000}, nil, 0, false}}))
 	if s.MHzIdle != -1 || s.Cores[0].MHzIdle != -1 || s.Avg.MHz[0] != -1 {
 		t.Fatalf("%v %v %v", s.MHzIdle, s.Cores[0].MHzIdle, s.Avg.MHz)
+	}
+}
+
+func TestThreadsSeparately(t *testing.T) {
+	s := Compute(mkRun([]pt{
+		{0, "single", 0, 0, []float64{1000}, nil, 0, false},
+		{0, "single", 1, 0, []float64{950}, nil, 0, false},
+		{0, "solo_b", 0, 0, []float64{1000}, nil, 0, false},
+		{0, "solo_b", 1, 0, []float64{940}, nil, 0, false},
+		{0, "pair", 0, 0, []float64{820, 780}, nil, 0, false},
+		{0, "pair", 1, 0, []float64{760, 740}, nil, 0, false},
+	}))
+	cv := s.Cores[0].Curve
+	check := func(name string, got []float64, want ...float64) {
+		t.Helper()
+		if len(got) != len(want) {
+			t.Fatalf("%s: %v", name, got)
+		}
+		for i := range want {
+			if !approx(got[i], want[i]) {
+				t.Fatalf("%s: %v want %v", name, got, want)
+			}
+		}
+	}
+	check("single", cv.Single, 100, 95)
+	check("solo_b", cv.SoloB, 100, 94)
+	check("pair a", cv.PairA, 82, 76)
+	check("pair b", cv.PairB, 78, 74)
+	check("pair sum", cv.PairSum, 160, 150)
+	check("pair", cv.Pair, 80, 75)
+	check("avg pair a", s.Avg.PairA, 82, 76)
+	if !approx(s.Cores[0].HTAPct, 82) || !approx(s.HTBPct, 78) {
+		t.Fatalf("ht a %v b %v", s.Cores[0].HTAPct, s.HTBPct)
+	}
+}
+
+func nodeRun() *result.Run {
+	var pts []pt
+	for k, v := range []float64{1000, 980, 950, 900} {
+		pts = append(pts, pt{0, "single", k, 0, []float64{v}, nil, 0, false})
+	}
+	pts = append(pts, pt{0, "solo_b", 0, 0, []float64{1000}, nil, 0, false})
+	for k, v := range []float64{850, 800, 750, 700} {
+		pts = append(pts, pt{0, "pair", k, 0, []float64{v, v}, nil, 0, false})
+	}
+	return mkRun(pts)
+}
+
+func TestNodeView(t *testing.T) {
+	n := Compute(nodeRun()).Node
+	if !n.Uniform || len(n.Isolated) != 4 || len(n.Packed) != 4 {
+		t.Fatalf("%+v", n)
+	}
+	if p := n.Isolated[3]; p.Servers != 4 || !approx(p.PerServerPct, 90) || !approx(p.TotalEq, 3.6) {
+		t.Fatalf("isolated %+v", p)
+	}
+	if p := n.Packed[1]; p.Servers != 4 || !approx(p.PerServerPct, 80) || !approx(p.TotalEq, 3.2) {
+		t.Fatalf("packed %+v", p)
+	}
+	if p := n.Packed[3]; p.Servers != 8 || !approx(p.TotalEq, 5.6) {
+		t.Fatalf("packed full %+v", p)
+	}
+	want := []Density{{95, 3, 0}, {90, 4, 0}, {80, 4, 4}, {70, 4, 8}}
+	if len(n.Density) != len(want) {
+		t.Fatalf("density %+v", n.Density)
+	}
+	for i := range want {
+		if n.Density[i] != want[i] {
+			t.Fatalf("density %+v want %+v", n.Density[i], want[i])
+		}
+	}
+	all := strings.Join(n.Conclusions, "\n")
+	for _, s := range []string{"(4 сервера)", "90%", "3,6 сервера", "(8 серверов)", "70%", "5,6 сервера", "на 10–13 п.п.", "выгодно"} {
+		if !strings.Contains(all, s) {
+			t.Fatalf("missing %q in:\n%s", s, all)
+		}
+	}
+}
+
+func TestNodeForcedBackground(t *testing.T) {
+	r := nodeRun()
+	r.Params.BgThreads = 2
+	n := Compute(r).Node
+	if n.Uniform || len(n.Density) != 0 || len(n.Conclusions) != 0 || len(n.Isolated) != 4 {
+		t.Fatalf("%+v", n)
+	}
+}
+
+func TestIsolationUseless(t *testing.T) {
+	s := Compute(mkRun([]pt{
+		{0, "single", 0, 0, []float64{1000}, nil, 0, false},
+		{0, "single", 1, 0, []float64{1000}, nil, 0, false},
+		{0, "solo_b", 0, 0, []float64{1000}, nil, 0, false},
+		{0, "pair", 0, 0, []float64{990, 990}, nil, 0, false},
+		{0, "pair", 1, 0, []float64{990, 990}, nil, 0, false},
+	}))
+	if all := strings.Join(s.Node.Conclusions, "\n"); !strings.Contains(all, "почти ничего не даёт") {
+		t.Fatalf("%s", all)
+	}
+}
+
+func TestServersWord(t *testing.T) {
+	for n, want := range map[int]string{1: "1 сервер", 2: "2 сервера", 5: "5 серверов", 11: "11 серверов", 21: "21 сервер", 24: "24 сервера", 32: "32 сервера"} {
+		if got := serversWord(n); got != want {
+			t.Errorf("%d: %q", n, got)
+		}
 	}
 }
