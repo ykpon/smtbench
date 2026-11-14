@@ -3,8 +3,8 @@
 # Usage: scripts/remote-test.sh internal/topology [test args...]
 set -euo pipefail
 
-HOST="${SMTBENCH_HOST:-root@test-host}"
-PORT="${SMTBENCH_PORT:-666}"
+HOST="${SMTBENCH_HOST:?set SMTBENCH_HOST=user@host}"
+PORT="${SMTBENCH_SSH_PORT:-22}"
 DIR=/root/smtbench
 SSH=(ssh -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 -p "$PORT" "$HOST")
 export MSYS_NO_PATHCONV=1
