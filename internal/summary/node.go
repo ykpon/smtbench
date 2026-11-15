@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
 )
 
 // NodePoint is the node with a given number of servers placed on it.
 type NodePoint struct {
 	Servers      int     `json:"servers"`
 	PerServerPct float64 `json:"per_server_pct"` // speed of each server, % of a server alone on an idle machine
-	TotalEq      float64 `json:"total_eq"`       // node output, in servers running alone on an idle machine
 	MHz          float64 `json:"mhz"`
 }
 
@@ -51,8 +49,7 @@ func nodeView(avg Curve, bg int) Node {
 			if pcts[i] < 0 || servers[i] <= 0 {
 				continue
 			}
-			*dst = append(*dst, NodePoint{Servers: servers[i], PerServerPct: pcts[i],
-				TotalEq: float64(servers[i]) * pcts[i] / 100, MHz: mhz[i]})
+			*dst = append(*dst, NodePoint{Servers: servers[i], PerServerPct: pcts[i], MHz: mhz[i]})
 		}
 	}
 	// A server alone on its core is either thread measured alone.
@@ -96,15 +93,15 @@ func conclusions(n Node, bg int) []string {
 	var out []string
 	iso := n.Isolated[len(n.Isolated)-1]
 	if bg != 2 {
-		out = append(out, fmt.Sprintf("По одному серверу на ядро: когда заняты все ядра (%s), каждый работает на %s от скорости на пустой машине. В сумме нода выдаёт столько же, сколько %s сервера на пустой машине.",
-			serversWord(iso.Servers), pctText(iso.PerServerPct), dec(iso.TotalEq)))
+		out = append(out, fmt.Sprintf("По одному серверу на ядро: когда заняты все ядра (%s), каждый работает на %s от скорости на пустой машине.",
+			serversWord(iso.Servers), pctText(iso.PerServerPct)))
 	}
 	if len(n.Packed) == 0 || bg == 1 {
 		return out
 	}
 	pk := n.Packed[len(n.Packed)-1]
-	out = append(out, fmt.Sprintf("По два сервера на ядро: когда заняты все потоки (%s), каждый работает на %s. В сумме нода выдаёт столько же, сколько %s сервера на пустой машине.",
-		serversWord(pk.Servers), pctText(pk.PerServerPct), dec(pk.TotalEq)))
+	out = append(out, fmt.Sprintf("По два сервера на ядро: когда заняты все потоки (%s), каждый работает на %s.",
+		serversWord(pk.Servers), pctText(pk.PerServerPct)))
 	if bg == 2 {
 		return append(out, wholeCore(n)...)
 	}
@@ -179,10 +176,6 @@ func uniqueInts(a, b int) []int {
 }
 
 func pctText(v float64) string { return fmt.Sprintf("%d%%", int(math.Round(v))) }
-
-func dec(v float64) string {
-	return strings.Replace(strconv.FormatFloat(v, 'f', 1, 64), ".", ",", 1)
-}
 
 // serversWord formats a count with the right Russian plural form.
 func serversWord(n int) string {

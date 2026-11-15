@@ -291,13 +291,13 @@ func TestNodeView(t *testing.T) {
 	if !n.Uniform || len(n.Isolated) != 4 || len(n.Packed) != 4 {
 		t.Fatalf("%+v", n)
 	}
-	if p := n.Isolated[3]; p.Servers != 4 || !approx(p.PerServerPct, 90) || !approx(p.TotalEq, 3.6) {
+	if p := n.Isolated[3]; p.Servers != 4 || !approx(p.PerServerPct, 90) {
 		t.Fatalf("isolated %+v", p)
 	}
-	if p := n.Packed[1]; p.Servers != 4 || !approx(p.PerServerPct, 80) || !approx(p.TotalEq, 3.2) {
+	if p := n.Packed[1]; p.Servers != 4 || !approx(p.PerServerPct, 80) {
 		t.Fatalf("packed %+v", p)
 	}
-	if p := n.Packed[3]; p.Servers != 8 || !approx(p.TotalEq, 5.6) {
+	if p := n.Packed[3]; p.Servers != 8 || !approx(p.PerServerPct, 70) {
 		t.Fatalf("packed full %+v", p)
 	}
 	want := []Density{{95, 3, 0}, {90, 4, 0}, {80, 4, 4}, {70, 4, 8}}
@@ -310,7 +310,7 @@ func TestNodeView(t *testing.T) {
 		}
 	}
 	all := strings.Join(n.Conclusions, "\n")
-	for _, s := range []string{"(4 сервера)", "90%", "3,6 сервера", "(8 серверов)", "70%", "5,6 сервера", "на 10–13 процентных пунктов", "выгодно"} {
+	for _, s := range []string{"(4 сервера)", "90%", "(8 серверов)", "70%", "на 10–13 процентных пунктов", "выгодно"} {
 		if !strings.Contains(all, s) {
 			t.Fatalf("missing %q in:\n%s", s, all)
 		}
@@ -417,7 +417,7 @@ func TestNoPercentPointAbbreviation(t *testing.T) {
 		for _, bg := range []int{0, 2} {
 			r.Params.BgThreads = bg
 			for _, c := range Compute(r).Node.Conclusions {
-				if strings.Contains(c, "п.п.") {
+				if strings.Contains(c, "п.п.") || strings.Contains(c, "В сумме") {
 					t.Fatalf("bg %d: %q", bg, c)
 				}
 			}
