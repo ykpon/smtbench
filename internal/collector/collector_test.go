@@ -166,6 +166,9 @@ func TestListOrderAndHeadline(t *testing.T) {
 	if h.FullSinglePct <= 0 || !h.HasPair || h.Ratings["full_single"] == "" || list[0].CPUModel == "" || list[0].Profile != "minecraft" {
 		t.Fatalf("%+v", list[0])
 	}
+	if p := list[0].Params; p.Profile != "minecraft" || p.DurationMS <= 0 || len(p.Cores) != 2 || p.Mix["mem"] != 45 {
+		t.Fatalf("params %+v", p)
+	}
 }
 
 func TestGetMissing(t *testing.T) {

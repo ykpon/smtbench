@@ -32,7 +32,7 @@ func TestSummaryShowsMHz(t *testing.T) {
 	}
 }
 
-func TestSummaryMatrixPairsAndDensity(t *testing.T) {
+func TestSummaryMatrixAndPairs(t *testing.T) {
 	var b strings.Builder
 	s := summary.Summary{HasPair: true, BaselineTPS: 10000, KneeSingle: -1,
 		HTPerThreadPct: 87, HTTotalPct: 173, FullAlonePct: 91, FullPairPct: 88, FullPairSumPct: 176,
@@ -45,15 +45,18 @@ func TestSummaryMatrixPairsAndDensity(t *testing.T) {
 	Summary(&b, &result.Run{Params: result.Params{BgThreads: 2}}, s)
 	out := b.String()
 	for _, want := range []string{
-		"все остальные ядра нагружены", "Поток один", "91%", "Оба потока ядра нагружены, каждый", "87%", "88%", "173%", "176%",
-		"вывод про плотность", "не медленнее 90%: по два на ядро — ни одного", "по два на ядро — 24",
-		"CPU 3", "CPU 19", "9 964", "9 980", "85%", "89%", "175%", "92%", "90%", "84%", "86%", "171%",
+		"все остальные ядра нагружены", "Поток один", "91%", "Оба потока ядра нагружены, каждый", "87%", "88%",
+		"вывод про плотность",
+		"CPU 3", "CPU 19", "9 964", "9 980", "85%", "89%", "92%", "90%", "84%", "86%",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "по одному на ядро") {
-		t.Fatalf("one-per-core density must be hidden when it was not measured:\n%s", out)
+	// the sum of two threads and the density table are not shown
+	for _, banned := range []string{"вместе", "173%", "176%", "175%", "171%", "помещается", "не медленнее"} {
+		if strings.Contains(out, banned) {
+			t.Fatalf("unexpected %q in\n%s", banned, out)
+		}
 	}
 }

@@ -30,6 +30,8 @@ type Meta struct {
 	ReceivedAt  time.Time `json:"received_at"`
 	Partial     bool      `json:"partial"`
 	Headline    Headline  `json:"headline"`
+	// Params are the settings the run was started with.
+	Params result.Params `json:"params"`
 }
 
 type Headline struct {
@@ -153,6 +155,12 @@ func (s *server) listRuns(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]Meta, 0, len(rows))
 	for _, x := range rows {
+		var head struct {
+			Params result.Params `json:"params"`
+		}
+		if json.Unmarshal(x.raw, &head) == nil {
+			x.Params = head.Params
+		}
 		if sum, err := s.summary(x.ID, x.raw); err == nil {
 			x.Headline = Headline{
 				FullSinglePct:  sum.FullSinglePct,

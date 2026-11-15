@@ -177,7 +177,6 @@ func Summary(w io.Writer, r *result.Run, s summary.Summary) {
 	fmt.Fprintf(tw, "  Поток один, второй поток ядра свободен\t100%%\t%s%s\n", pctCell(s.FullAlonePct), rated(s, "full_single"))
 	if s.HasPair {
 		fmt.Fprintf(tw, "  Оба потока ядра нагружены, каждый\t%s%s\t%s%s\n", pctCell(s.HTPerThreadPct), rated(s, "ht"), pctCell(s.FullPairPct), rated(s, "full_pair"))
-		fmt.Fprintf(tw, "  Оба потока ядра вместе\t%s\t%s\n", pctCell(s.HTTotalPct), pctCell(s.FullPairSumPct))
 	}
 	tw.Flush()
 
@@ -185,21 +184,6 @@ func Summary(w io.Writer, r *result.Run, s summary.Summary) {
 		fmt.Fprintln(w)
 		for _, c := range s.Node.Conclusions {
 			fmt.Fprintf(w, "  %s\n", c)
-		}
-	}
-	if len(s.Node.Density) > 0 {
-		fmt.Fprintln(w, "\n  Сколько серверов помещается на ноду, чтобы каждый работал:")
-		for _, d := range s.Node.Density {
-			var parts []string
-			if d.Isolated >= 0 {
-				parts = append(parts, "по одному на ядро — "+countOrNone(d.Isolated))
-			}
-			if d.Packed >= 0 {
-				parts = append(parts, "по два на ядро — "+countOrNone(d.Packed))
-			}
-			if len(parts) > 0 {
-				fmt.Fprintf(w, "    не медленнее %d%%: %s\n", d.MinPct, strings.Join(parts, ", "))
-			}
 		}
 	}
 
@@ -245,17 +229,17 @@ func pairs(w io.Writer, s summary.Summary, full string) {
 	fmt.Fprintf(w, "«Пусто» — остальные ядра свободны, «загружено» — %s.\n", full)
 	fmt.Fprintf(w, "Проценты — от скорости этого же потока одного на пустой машине.\n\n")
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "  \t\tпусто:\tпусто:\tпусто:\tзагружено:\tзагружено:\tзагружено:\t")
-	fmt.Fprintln(tw, "  ядро\tпоток\tодин, тиков/с\tсосед нагружен\tоба вместе\tодин\tсосед нагружен\tоба вместе\t")
+	fmt.Fprintln(tw, "  \t\tпусто:\tпусто:\tзагружено:\tзагружено:\t")
+	fmt.Fprintln(tw, "  ядро\tпоток\tодин, тиков/с\tсосед нагружен\tодин\tсосед нагружен\t")
 	for _, c := range s.Cores {
 		note := ""
 		if c.Noisy {
 			note = "помехи"
 		}
-		fmt.Fprintf(tw, "  %d\tCPU %d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", c.Core, c.CPUA, tpsCell(c.BaseTPS),
-			pctCell(c.HTAPct), pctCell(c.HTTotalPct), pctCell(c.FullSinglePct), pctCell(c.FullPairAPct), pctCell(c.FullPairSumPct), note)
+		fmt.Fprintf(tw, "  %d\tCPU %d\t%s\t%s\t%s\t%s\t%s\n", c.Core, c.CPUA, tpsCell(c.BaseTPS),
+			pctCell(c.HTAPct), pctCell(c.FullSinglePct), pctCell(c.FullPairAPct), note)
 		if c.CPUB >= 0 {
-			fmt.Fprintf(tw, "  \tCPU %d\t%s\t%s\t\t%s\t%s\t\t\n", c.CPUB, tpsCell(c.BaseBTPS),
+			fmt.Fprintf(tw, "  \tCPU %d\t%s\t%s\t%s\t%s\t\n", c.CPUB, tpsCell(c.BaseBTPS),
 				pctCell(c.HTBPct), pctCell(c.FullSoloBPct), pctCell(c.FullPairBPct))
 		}
 	}

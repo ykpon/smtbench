@@ -115,11 +115,11 @@ func conclusions(n Node, bg int) []string {
 // a core, on a node filled two servers per core.
 func wholeCore(n Node) []string {
 	iso, pk := n.Isolated[len(n.Isolated)-1], n.Packed[len(n.Packed)-1]
-	idle := int(math.Round(n.Isolated[0].PerServerPct) - math.Round(n.Packed[0].PerServerPct))
 	full := int(math.Round(iso.PerServerPct) - math.Round(pk.PerServerPct))
 	out := []string{
 		fmt.Sprintf("Сервер, которому отдано ядро целиком (второй поток свободен): когда все остальные ядра заняты по два сервера, он работает на %s.", pctText(iso.PerServerPct)),
-		fmt.Sprintf("Не занимать второй поток ядра — это %+d п.п. к скорости сервера на пустой ноде и %+d п.п. на забитой.", idle, full),
+		fmt.Sprintf("Если второй поток ядра не занимать, сервер работает быстрее: на пустой ноде %s вместо %s, на забитой %s вместо %s.",
+			pctText(n.Isolated[0].PerServerPct), pctText(n.Packed[0].PerServerPct), pctText(iso.PerServerPct), pctText(pk.PerServerPct)),
 	}
 	if full < isolationGainPct {
 		out = append(out, "На забитой ноде выделять серверу целое ядро почти ничего не даёт.")
@@ -160,13 +160,13 @@ func sameCount(n Node) []string {
 			serversWord(c), pctText(isoBy[c]), pctText(packedBy[c])))
 	}
 	if maxGain < isolationGainPct {
-		out = append(out, fmt.Sprintf("Разносить серверы по разным ядрам почти ничего не даёт: разница не больше %d п.п.", int(math.Max(maxGain, 0))))
+		out = append(out, fmt.Sprintf("Разносить серверы по разным ядрам почти ничего не даёт: разница не больше %d %s.", int(math.Max(maxGain, 0)), pointsWord(int(math.Max(maxGain, 0)))))
 	} else {
 		gain := strconv.Itoa(int(maxGain))
 		if minGain != maxGain {
 			gain = fmt.Sprintf("%d–%d", int(minGain), int(maxGain))
 		}
-		out = append(out, fmt.Sprintf("Пока серверов не больше, чем ядер, разносить их по разным ядрам выгодно: каждый работает быстрее на %s п.п.", gain))
+		out = append(out, fmt.Sprintf("Пока серверов не больше, чем ядер, разносить их по разным ядрам выгодно: каждый работает быстрее на %s %s.", gain, pointsWord(int(maxGain))))
 	}
 	return out
 }
@@ -195,4 +195,17 @@ func serversWord(n int) string {
 		word = "сервера"
 	}
 	return fmt.Sprintf("%d %s", n, word)
+}
+
+// pointsWord is "процентный пункт" in the form that goes after n.
+func pointsWord(n int) string {
+	switch {
+	case n%100 >= 11 && n%100 <= 14:
+		return "процентных пунктов"
+	case n%10 == 1:
+		return "процентный пункт"
+	case n%10 >= 2 && n%10 <= 4:
+		return "процентных пункта"
+	}
+	return "процентных пунктов"
 }

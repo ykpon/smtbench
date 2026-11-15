@@ -310,7 +310,7 @@ func TestNodeView(t *testing.T) {
 		}
 	}
 	all := strings.Join(n.Conclusions, "\n")
-	for _, s := range []string{"(4 сервера)", "90%", "3,6 сервера", "(8 серверов)", "70%", "5,6 сервера", "на 10–13 п.п.", "выгодно"} {
+	for _, s := range []string{"(4 сервера)", "90%", "3,6 сервера", "(8 серверов)", "70%", "5,6 сервера", "на 10–13 процентных пунктов", "выгодно"} {
 		if !strings.Contains(all, s) {
 			t.Fatalf("missing %q in:\n%s", s, all)
 		}
@@ -335,7 +335,7 @@ func TestNodeFullyLoadedNeighbours(t *testing.T) {
 		}
 	}
 	all := strings.Join(n.Conclusions, " | ")
-	for _, s := range []string{"(8 серверов)", "70%", "ядро целиком", "90%", "+15 п.п.", "+20 п.п."} {
+	for _, s := range []string{"(8 серверов)", "70%", "ядро целиком", "90%", "100% вместо 85%", "90% вместо 70%"} {
 		if !strings.Contains(all, s) {
 			t.Fatalf("missing %q in: %s", s, all)
 		}
@@ -409,5 +409,26 @@ func TestNodeAloneUsesBothThreads(t *testing.T) {
 	}))
 	if p := s.Node.Isolated[1]; !approx(p.PerServerPct, 93) || !approx(s.FullAlonePct, 93) {
 		t.Fatalf("node %v matrix %v", p.PerServerPct, s.FullAlonePct)
+	}
+}
+
+func TestNoPercentPointAbbreviation(t *testing.T) {
+	for _, r := range []*result.Run{nodeRun()} {
+		for _, bg := range []int{0, 2} {
+			r.Params.BgThreads = bg
+			for _, c := range Compute(r).Node.Conclusions {
+				if strings.Contains(c, "п.п.") {
+					t.Fatalf("bg %d: %q", bg, c)
+				}
+			}
+		}
+	}
+}
+
+func TestPointsWord(t *testing.T) {
+	for n, want := range map[int]string{1: "процентный пункт", 3: "процентных пункта", 5: "процентных пунктов", 11: "процентных пунктов", 22: "процентных пункта"} {
+		if got := pointsWord(n); got != want {
+			t.Errorf("%d: %q", n, got)
+		}
 	}
 }
