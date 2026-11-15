@@ -398,3 +398,16 @@ func TestPairTableWithoutSecondThread(t *testing.T) {
 		t.Fatalf("%+v", c)
 	}
 }
+
+// The whole-core line uses both threads measured alone, like the summary matrix.
+func TestNodeAloneUsesBothThreads(t *testing.T) {
+	s := Compute(mkRun([]pt{
+		{0, "single", 0, 0, []float64{1000}, nil, 0, false},
+		{0, "single", 1, 0, []float64{960}, nil, 0, false},
+		{0, "solo_b", 0, 0, []float64{1000}, nil, 0, false},
+		{0, "solo_b", 1, 0, []float64{900}, nil, 0, false},
+	}))
+	if p := s.Node.Isolated[1]; !approx(p.PerServerPct, 93) || !approx(s.FullAlonePct, 93) {
+		t.Fatalf("node %v matrix %v", p.PerServerPct, s.FullAlonePct)
+	}
+}

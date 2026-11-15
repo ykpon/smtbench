@@ -55,7 +55,12 @@ func nodeView(avg Curve, bg int) Node {
 				TotalEq: float64(servers[i]) * pcts[i] / 100, MHz: mhz[i]})
 		}
 	}
-	add(&n.Isolated, avg.SingleServers, avg.Single, avg.MHz)
+	// A server alone on its core is either thread measured alone.
+	alone := make([]float64, len(avg.Loaded))
+	for i := range alone {
+		alone[i] = mean([]float64{avg.Single[i], avg.SoloB[i]})
+	}
+	add(&n.Isolated, avg.SingleServers, alone, avg.MHz)
 	add(&n.Packed, avg.PairServers, avg.Pair, avg.PairMHz)
 	if len(n.Isolated) == 0 {
 		return n
