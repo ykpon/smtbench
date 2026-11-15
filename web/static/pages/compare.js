@@ -42,6 +42,7 @@ export async function renderCompare(app, ids) {
   const fit = (r, field) => {
     const d = (r.summary.node.density || []).find((x) => x.min_pct === 90);
     if (!d) return "—";
+    if (d[field] < 0) return "—";
     return d[field] > 0 ? `до ${d[field]}` : "ни одного";
   };
 
@@ -55,10 +56,10 @@ export async function renderCompare(app, ids) {
       ${row("Скорость одного потока, тиков/с", (r) => (r.summary.baseline_tps > 0 ? fmtInt(r.summary.baseline_tps) : "—"))}
       ${row(`Скорость ядра относительно «${esc(name(runs[0]))}»`, (r) => fmtPct(base0 > 0 ? (100 * r.summary.baseline_tps) / base0 : -1))}
       ${row("Оба потока ядра нагружены: 1-й и 2-й поток", (r) => (r.summary.has_pair ? valueWithRating(`${fmtPct(r.summary.ht_a_pct)} и ${fmtPct(r.summary.ht_b_pct)}`, r.summary.ratings.ht) : "HT нет"))}
-      ${row("Нода забита по одному серверу на ядро, каждый", (r) => valueWithRating(fmtPct(r.summary.full_single_pct), r.summary.ratings.full_single))}
-      ${row("Нода забита по два сервера на ядро, каждый", (r) => (r.summary.has_pair ? valueWithRating(fmtPct(r.summary.full_pair_pct), r.summary.ratings.full_pair) : "HT нет"))}
-      ${row("Серверов по одному на ядро, каждый не медленнее 90%", (r) => fit(r, "isolated"))}
-      ${row("Серверов по два на ядро, каждый не медленнее 90%", (r) => (r.summary.has_pair ? fit(r, "packed") : "HT нет"))}
+      ${row("Поток один, остальные ядра нагружены", (r) => valueWithRating(fmtPct(r.summary.full_alone_pct), r.summary.ratings.full_single))}
+      ${row("Оба потока нагружены, остальные ядра нагружены: каждый", (r) => (r.summary.has_pair ? valueWithRating(fmtPct(r.summary.full_pair_pct), r.summary.ratings.full_pair) : "HT нет"))}
+      ${row("Помещается серверов по одному на ядро, каждый не медленнее 90%", (r) => fit(r, "isolated"))}
+      ${row("Помещается серверов по два на ядро, каждый не медленнее 90%", (r) => (r.summary.has_pair ? fit(r, "packed") : "HT нет"))}
       ${row("Лаги при полной загрузке", (r) => valueWithRating(fmtTimes(r.summary.lag_ratio), r.summary.ratings.lag))}
     </tbody></table></div>`;
 
@@ -66,9 +67,9 @@ export async function renderCompare(app, ids) {
     <p class="sub">Проценты — от скорости потока своей же машины на пустой машине. Абсолютную скорость ядер сравнивает строка «Скорость ядра относительно…».</p>
     ${diff.length ? `<div class="notice">Прогоны сделаны с разными настройками — сравнивать напрямую нельзя: различаются ${diff.map((k) => paramNames[k]).join(", ")}.</div>` : ""}
     ${table}
-    <h2>По одному серверу на ядро: скорость каждого по числу серверов на ноде</h2>
+    <h2>Сервер один на своём ядре: скорость по числу серверов на ноде</h2>
     <div class="panel"><div id="c1"></div></div>
-    <h2>По два сервера на ядро: скорость каждого по числу серверов на ноде</h2>
+    <h2>Сервер делит ядро со вторым: скорость по числу серверов на ноде</h2>
     <div class="panel"><div id="c2"></div></div>`;
 
   const draw = (el, field) => {

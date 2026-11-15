@@ -42,8 +42,8 @@ export const metricText = {
   solo_pct: "Скорость ядра (100% — типичное ядро этой машины)",
   ht_a_pct: "1-й поток, когда нагружен 2-й",
   ht_b_pct: "2-й поток, когда нагружен 1-й",
-  full_single_pct: "Нода забита по одному серверу на ядро",
-  full_pair_pct: "Нода забита по два сервера на ядро",
+  full_single_pct: "Поток один, остальные ядра нагружены",
+  full_pair_pct: "Оба потока нагружены, остальные ядра нагружены",
 };
 
 export const modeText = { single: "1 сервер на ядро", pair: "2 сервера на ядро", solo_b: "второй поток", final: "повтор" };
@@ -66,4 +66,11 @@ export function sizeMB(kb) {
 
 export function fmtMHz(v) {
   return v == null || v <= 0 ? "—" : `${Math.round(v)}${nbsp}МГц`;
+}
+
+// othersLoaded names the "other cores loaded" condition for a run's bg_threads.
+export function othersLoaded(bgThreads) {
+  if (bgThreads === 2) return "Все остальные ядра нагружены";
+  if (bgThreads === 1) return "Остальные ядра нагружены одним потоком";
+  return "Остальные ядра нагружены так же, как тестируемое";
 }

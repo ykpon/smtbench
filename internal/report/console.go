@@ -58,11 +58,9 @@ func Header(w io.Writer, t *topology.Topology, ws []plan.Window, p result.Params
 	fmt.Fprintf(w, "Профиль: %s (%s) · ядер в тесте: %d · окон: %d · замер %s + прогрев %s\n",
 		p.Profile, mixString(p.Mix), len(cores), len(ws),
 		Duration(time.Duration(p.DurationMS)*time.Millisecond), Duration(time.Duration(p.WarmupMS)*time.Millisecond))
-	bg := "так же, как тестируемое (1 или 2 потока)"
-	if p.BgThreads != 0 {
-		bg = fmt.Sprintf("потоков на ядро: %d", p.BgThreads)
-	}
-	fmt.Fprintf(w, "Порядок загрузки: %s · соседние ядра загружаются %s\n", p.Order, bg)
+	bg := map[int]string{0: "столько же потоков, сколько у тестируемого", 1: "один поток", 2: "оба потока"}[p.BgThreads]
+	fmt.Fprintf(w, "Порядок загрузки: %s · у соседних ядер нагружается: %s
+", p.Order, bg)
 	fmt.Fprintf(w, "Оценка времени: ~%s\n\n", Duration(est))
 }
 
