@@ -97,7 +97,7 @@ func TestPostAndGet(t *testing.T) {
 	if code := getJSON(t, srv.URL+"/api/runs/"+m["id"], &got); code != 200 {
 		t.Fatalf("code %d", code)
 	}
-	if got.Run.RunID != m["id"] || got.Summary.Version != 2 {
+	if got.Run.RunID != m["id"] || got.Summary.Version != 3 {
 		t.Fatalf("%+v", got)
 	}
 }

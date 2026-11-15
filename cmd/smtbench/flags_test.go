@@ -17,7 +17,7 @@ func TestParseRunFlagsDefaults(t *testing.T) {
 	}
 	p := o.Params
 	if p.Profile != "int" || p.DurationMS != 3000 || p.WarmupMS != 1000 || p.Reps != 1 || p.Step != 1 ||
-		p.Order != "near" || p.BgThreads != 0 || !reflect.DeepEqual(p.Modes, []string{"single", "solo_b", "pair"}) ||
+		p.Order != "near" || p.BgThreads != 2 || !reflect.DeepEqual(p.Modes, []string{"single", "solo_b", "pair"}) ||
 		p.NoiseMaxPct != 3 || o.Label != "host1" || p.Cores != nil {
 		t.Fatalf("%+v label %q", p, o.Label)
 	}

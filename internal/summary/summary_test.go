@@ -317,12 +317,28 @@ func TestNodeView(t *testing.T) {
 	}
 }
 
-func TestNodeForcedBackground(t *testing.T) {
+func TestNodeFullyLoadedNeighbours(t *testing.T) {
 	r := nodeRun()
 	r.Params.BgThreads = 2
+	for i := range r.Points {
+		r.Points[i].LoadedCPUs = make([]int, 2*r.Points[i].LoadedCores)
+	}
 	n := Compute(r).Node
-	if n.Uniform || len(n.Density) != 0 || len(n.Conclusions) != 0 || len(n.Isolated) != 4 {
+	if n.Uniform || len(n.Isolated) != 4 || n.Isolated[3].Servers != 7 {
 		t.Fatalf("%+v", n)
+	}
+	// the packed line still describes a uniform node, the other one does not
+	want := []Density{{95, -1, 0}, {90, -1, 0}, {80, -1, 4}, {70, -1, 8}}
+	for i := range want {
+		if n.Density[i] != want[i] {
+			t.Fatalf("density %+v want %+v", n.Density[i], want[i])
+		}
+	}
+	all := strings.Join(n.Conclusions, " | ")
+	for _, s := range []string{"(8 серверов)", "70%", "ядро целиком", "90%", "+15 п.п.", "+20 п.п."} {
+		if !strings.Contains(all, s) {
+			t.Fatalf("missing %q in: %s", s, all)
+		}
 	}
 }
 
@@ -344,5 +360,41 @@ func TestServersWord(t *testing.T) {
 		if got := serversWord(n); got != want {
 			t.Errorf("%d: %q", n, got)
 		}
+	}
+}
+
+func TestPairTableValues(t *testing.T) {
+	s := Compute(mkRun([]pt{
+		{0, "single", 0, 0, []float64{1000}, nil, 0, false},
+		{0, "single", 1, 0, []float64{900}, nil, 0, false},
+		{0, "solo_b", 0, 0, []float64{2000}, nil, 0, false},
+		{0, "solo_b", 1, 0, []float64{1700}, nil, 0, false},
+		{0, "pair", 0, 0, []float64{800, 1500}, nil, 0, false},
+		{0, "pair", 1, 0, []float64{700, 1200}, nil, 0, false},
+	}))
+	c := s.Cores[0]
+	if c.CPUA != 0 || c.CPUB != 1 {
+		t.Fatalf("cpus %d %d", c.CPUA, c.CPUB)
+	}
+	for name, v := range map[string][2]float64{
+		"base b":        {c.BaseBTPS, 2000},
+		"full a alone":  {c.FullSinglePct, 90},
+		"full b alone":  {c.FullSoloBPct, 85},
+		"full pair a":   {c.FullPairAPct, 70},
+		"full pair b":   {c.FullPairBPct, 60},
+		"full pair sum": {c.FullPairSumPct, 190},
+		"avg alone":     {s.FullAlonePct, 87.5},
+		"avg pair sum":  {s.FullPairSumPct, 190},
+	} {
+		if !approx(v[0], v[1]) {
+			t.Errorf("%s: %v want %v", name, v[0], v[1])
+		}
+	}
+}
+
+func TestPairTableWithoutSecondThread(t *testing.T) {
+	c := Compute(mkRun([]pt{{0, "single", 0, 0, []float64{1000}, nil, 0, false}})).Cores[0]
+	if c.CPUB != -1 || c.FullSoloBPct != -1 || c.FullPairAPct != -1 || c.BaseBTPS != -1 {
+		t.Fatalf("%+v", c)
 	}
 }

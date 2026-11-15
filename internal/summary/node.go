@@ -25,9 +25,10 @@ type Density struct {
 // Node answers how the node degrades as servers are added, for two placements:
 // one server per core (Isolated) and two servers per core (Packed).
 type Node struct {
-	// Uniform: neighbours were loaded the same way as the tested core, so each
-	// line describes a node filled with one placement. Density and Conclusions
-	// are only computed in that case.
+	// Uniform: neighbours were loaded the same way as the tested core, so both
+	// lines describe a node filled with one placement. With neighbours always
+	// loaded on both threads only Packed does; Isolated is then a server that
+	// has a whole core on a packed node.
 	Uniform     bool        `json:"uniform"`
 	Isolated    []NodePoint `json:"isolated"`
 	Packed      []NodePoint `json:"packed"`
@@ -41,8 +42,10 @@ var densityLevels = []int{95, 90, 80, 70}
 // reported as not worth it.
 const isolationGainPct = 3
 
-func nodeView(avg Curve, uniform bool) Node {
-	n := Node{Uniform: uniform, Isolated: []NodePoint{}, Packed: []NodePoint{}, Density: []Density{}, Conclusions: []string{}}
+// nodeView builds the node lines. bg is Params.BgThreads: 0 means neighbours
+// are loaded like the tested core, 1 or 2 always that many threads per core.
+func nodeView(avg Curve, bg int) Node {
+	n := Node{Uniform: bg == 0, Isolated: []NodePoint{}, Packed: []NodePoint{}, Density: []Density{}, Conclusions: []string{}}
 	add := func(dst *[]NodePoint, servers []int, pcts, mhz []float64) {
 		for i := range avg.Loaded {
 			if pcts[i] < 0 || servers[i] <= 0 {
@@ -54,13 +57,20 @@ func nodeView(avg Curve, uniform bool) Node {
 	}
 	add(&n.Isolated, avg.SingleServers, avg.Single, avg.MHz)
 	add(&n.Packed, avg.PairServers, avg.Pair, avg.PairMHz)
-	if !uniform || len(n.Isolated) == 0 {
+	if len(n.Isolated) == 0 {
 		return n
 	}
 	for _, lvl := range densityLevels {
-		n.Density = append(n.Density, Density{MinPct: lvl, Isolated: fits(n.Isolated, lvl), Packed: fits(n.Packed, lvl)})
+		d := Density{MinPct: lvl, Isolated: -1, Packed: -1}
+		if bg != 2 {
+			d.Isolated = fits(n.Isolated, lvl)
+		}
+		if bg != 1 && len(n.Packed) > 0 {
+			d.Packed = fits(n.Packed, lvl)
+		}
+		n.Density = append(n.Density, d)
 	}
-	n.Conclusions = conclusions(n)
+	n.Conclusions = conclusions(n, bg)
 	return n
 }
 
@@ -77,19 +87,44 @@ func fits(points []NodePoint, minPct int) int {
 	return best
 }
 
-func conclusions(n Node) []string {
+func conclusions(n Node, bg int) []string {
 	var out []string
 	iso := n.Isolated[len(n.Isolated)-1]
-	out = append(out, fmt.Sprintf("По одному серверу на ядро: когда заняты все ядра (%s), каждый работает на %s от скорости на пустой машине. В сумме нода выдаёт столько же, сколько %s сервера на пустой машине.",
-		serversWord(iso.Servers), pctText(iso.PerServerPct), dec(iso.TotalEq)))
-	if len(n.Packed) == 0 {
+	if bg != 2 {
+		out = append(out, fmt.Sprintf("По одному серверу на ядро: когда заняты все ядра (%s), каждый работает на %s от скорости на пустой машине. В сумме нода выдаёт столько же, сколько %s сервера на пустой машине.",
+			serversWord(iso.Servers), pctText(iso.PerServerPct), dec(iso.TotalEq)))
+	}
+	if len(n.Packed) == 0 || bg == 1 {
 		return out
 	}
 	pk := n.Packed[len(n.Packed)-1]
 	out = append(out, fmt.Sprintf("По два сервера на ядро: когда заняты все потоки (%s), каждый работает на %s. В сумме нода выдаёт столько же, сколько %s сервера на пустой машине.",
 		serversWord(pk.Servers), pctText(pk.PerServerPct), dec(pk.TotalEq)))
+	if bg == 2 {
+		return append(out, wholeCore(n)...)
+	}
+	return append(out, sameCount(n)...)
+}
 
-	// The same number of servers placed both ways.
+// wholeCore compares a server that has a core to itself with servers sharing
+// a core, on a node filled two servers per core.
+func wholeCore(n Node) []string {
+	iso, pk := n.Isolated[len(n.Isolated)-1], n.Packed[len(n.Packed)-1]
+	idle := int(math.Round(n.Isolated[0].PerServerPct) - math.Round(n.Packed[0].PerServerPct))
+	full := int(math.Round(iso.PerServerPct) - math.Round(pk.PerServerPct))
+	out := []string{
+		fmt.Sprintf("Сервер, которому отдано ядро целиком (второй поток свободен): когда все остальные ядра заняты по два сервера, он работает на %s.", pctText(iso.PerServerPct)),
+		fmt.Sprintf("Не занимать второй поток ядра — это %+d п.п. к скорости сервера на пустой ноде и %+d п.п. на забитой.", idle, full),
+	}
+	if full < isolationGainPct {
+		out = append(out, "На забитой ноде выделять серверу целое ядро почти ничего не даёт.")
+	}
+	return out
+}
+
+// sameCount compares the same number of servers placed one and two per core.
+func sameCount(n Node) []string {
+	var out []string
 	isoBy := map[int]float64{}
 	for _, p := range n.Isolated {
 		isoBy[p.Servers] = p.PerServerPct

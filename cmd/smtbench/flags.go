@@ -48,7 +48,7 @@ func parseRunFlags(args []string, hostname string) (runOpts, error) {
 	modes := fs.String("modes", "single,solo_b,pair", "что мерить: single (1-й поток ядра один), solo_b (2-й поток один), pair (оба потока вместе)")
 	step := fs.Int("step", 1, "шаг нарастания нагрузки, в ядрах")
 	order := fs.String("order", "near", "порядок загрузки: near (сначала свой чиплет) или far")
-	bgThreads := fs.String("bg-threads", "auto", "сколько потоков грузить у соседних ядер: auto (как у тестируемого ядра), 1 или 2")
+	bgThreads := fs.String("bg-threads", "2", "сколько потоков грузить у соседних ядер: 2 (ядро занято целиком), 1 или auto (как у тестируемого ядра)")
 	noiseMax := fs.Float64("noise-max", 3, "порог помех, %")
 	label := fs.String("label", hostname, "имя ноды в интерфейсе")
 	out := fs.String("out", "", "файл результата (по умолчанию smtbench-<label>-<дата>.json)")

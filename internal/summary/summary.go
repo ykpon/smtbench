@@ -12,7 +12,7 @@ import (
 	"smtbench/internal/result"
 )
 
-const Version = 2
+const Version = 3
 
 type Rating string
 
@@ -73,16 +73,26 @@ type Curve struct {
 	Boundary      int       `json:"boundary"`
 }
 
+// Core describes one physical core: thread A (CPUA) and its sibling B (CPUB).
+// Percentages are of the same thread running alone on an idle machine;
+// "Full" values are measured with all other cores loaded.
 type Core struct {
 	Core           int     `json:"core"`
+	CPUA           int     `json:"cpu_a"`
+	CPUB           int     `json:"cpu_b"` // -1 without a second thread
 	BaseTPS        float64 `json:"base_tps"`
+	BaseBTPS       float64 `json:"base_b_tps"`
 	SoloPct        float64 `json:"solo_pct"`
 	HTPerThreadPct float64 `json:"ht_per_thread_pct"`
 	HTAPct         float64 `json:"ht_a_pct"`
 	HTBPct         float64 `json:"ht_b_pct"`
 	HTTotalPct     float64 `json:"ht_total_pct"`
-	FullSinglePct  float64 `json:"full_single_pct"`
-	FullPairPct    float64 `json:"full_pair_pct"`
+	FullSinglePct  float64 `json:"full_single_pct"` // thread A alone
+	FullSoloBPct   float64 `json:"full_solo_b_pct"` // thread B alone
+	FullPairPct    float64 `json:"full_pair_pct"`   // mean of the two below
+	FullPairAPct   float64 `json:"full_pair_a_pct"`
+	FullPairBPct   float64 `json:"full_pair_b_pct"`
+	FullPairSumPct float64 `json:"full_pair_sum_pct"`
 	LagRatio       float64 `json:"lag_ratio"`
 	DriftPct       float64 `json:"drift_pct"`
 	MHzIdle        float64 `json:"mhz_idle"`
@@ -105,7 +115,9 @@ type Summary struct {
 	HTBPct         float64           `json:"ht_b_pct"`
 	HTTotalPct     float64           `json:"ht_total_pct"`
 	FullSinglePct  float64           `json:"full_single_pct"`
+	FullAlonePct   float64           `json:"full_alone_pct"` // either thread alone, all other cores loaded
 	FullPairPct    float64           `json:"full_pair_pct"`
+	FullPairSumPct float64           `json:"full_pair_sum_pct"`
 	LagRatio       float64           `json:"lag_ratio"`
 	MHzIdle        float64           `json:"mhz_idle"`
 	MHzFullSingle  float64           `json:"mhz_full_single"`
@@ -208,7 +220,7 @@ func Compute(r *result.Run) Summary {
 	}
 	s.BaselineTPS = median(bases)
 
-	var ht, htA, htB, htTotal, fullS, fullP, lag []float64
+	var ht, htA, htB, htTotal, fullS, fullP, fullAlone, fullSum, lag []float64
 	for i := range s.Cores {
 		c := &s.Cores[i]
 		c.SoloPct = pct(c.BaseTPS, s.BaselineTPS)
@@ -221,6 +233,8 @@ func Compute(r *result.Run) Summary {
 		htTotal = append(htTotal, c.HTTotalPct)
 		fullS = append(fullS, c.FullSinglePct)
 		fullP = append(fullP, c.FullPairPct)
+		fullAlone = append(fullAlone, mean([]float64{c.FullSinglePct, c.FullSoloBPct}))
+		fullSum = append(fullSum, c.FullPairSumPct)
 		lag = append(lag, c.LagRatio)
 	}
 	var mi, mfs, mfp []float64
@@ -234,8 +248,9 @@ func Compute(r *result.Run) Summary {
 	s.HTPerThreadPct, s.HTTotalPct = mean(ht), mean(htTotal)
 	s.HTAPct, s.HTBPct = mean(htA), mean(htB)
 	s.FullSinglePct, s.FullPairPct, s.LagRatio = mean(fullS), mean(fullP), mean(lag)
+	s.FullAlonePct, s.FullPairSumPct = mean(fullAlone), mean(fullSum)
 	s.Avg = averageCurve(s.Cores)
-	s.Node = nodeView(s.Avg, r.Params.BgThreads == 0)
+	s.Node = nodeView(s.Avg, r.Params.BgThreads)
 
 	for i, k := range s.Avg.Loaded {
 		if s.Avg.Single[i] < kneePct {
@@ -306,8 +321,9 @@ func tps(p result.Point, ok bool, i int) float64 {
 }
 
 func computeCore(id int, pts map[key]result.Point) Core {
-	c := Core{Core: id, HTPerThreadPct: -1, HTAPct: -1, HTBPct: -1, HTTotalPct: -1, FullSinglePct: -1, FullPairPct: -1, LagRatio: -1,
-		MHzIdle: -1, MHzFullSingle: -1, MHzFullPair: -1}
+	c := Core{Core: id, CPUA: -1, CPUB: -1, BaseBTPS: -1, HTPerThreadPct: -1, HTAPct: -1, HTBPct: -1, HTTotalPct: -1,
+		FullSinglePct: -1, FullSoloBPct: -1, FullPairPct: -1, FullPairAPct: -1, FullPairBPct: -1, FullPairSumPct: -1,
+		LagRatio: -1, MHzIdle: -1, MHzFullSingle: -1, MHzFullPair: -1}
 	single0, okS := pts[key{"single", 0}]
 	c.BaseTPS = tps(single0, okS, 0)
 	// The final point repeats single k=0 after the ramp. Turbo frequency on a
@@ -325,8 +341,15 @@ func computeCore(id int, pts map[key]result.Point) Core {
 	}
 	soloB, okB := pts[key{"solo_b", 0}]
 	baseB := tps(soloB, okB, 0)
+	c.BaseBTPS = baseB
 	if baseB < 0 {
 		baseB = c.BaseTPS
+	}
+	if okS && len(single0.Threads) > 0 {
+		c.CPUA = single0.Threads[0].CPU
+	}
+	if okB && len(soloB.Threads) > 0 {
+		c.CPUB = soloB.Threads[0].CPU
 	}
 	perThread := func(p result.Point) float64 {
 		if len(p.Threads) < 2 {
@@ -336,6 +359,7 @@ func computeCore(id int, pts map[key]result.Point) Core {
 	}
 
 	if pair0, ok := pts[key{"pair", 0}]; ok && len(pair0.Threads) == 2 {
+		c.CPUA, c.CPUB = pair0.Threads[0].CPU, pair0.Threads[1].CPU
 		c.HTPerThreadPct = perThread(pair0)
 		c.HTAPct = pct(pair0.Threads[0].TicksPerSec, c.BaseTPS)
 		c.HTBPct = pct(pair0.Threads[1].TicksPerSec, baseB)
@@ -399,6 +423,8 @@ func computeCore(id int, pts map[key]result.Point) Core {
 		kmax := cv.Loaded[n-1]
 		c.FullSinglePct = cv.Single[n-1]
 		c.FullPairPct = cv.Pair[n-1]
+		c.FullSoloBPct = cv.SoloB[n-1]
+		c.FullPairAPct, c.FullPairBPct, c.FullPairSumPct = cv.PairA[n-1], cv.PairB[n-1], cv.PairSum[n-1]
 		c.MHzFullSingle = cv.MHz[n-1]
 		c.MHzFullPair = cv.PairMHz[n-1]
 		base99 := -1.0
