@@ -1,5 +1,5 @@
 import { api } from "../app.js";
-import { esc, fmtDate, fmtPct, valueWithRating } from "../texts.js";
+import { esc, fmtDate, fmtPct, paramsShort, valueWithRating } from "../texts.js";
 
 export async function renderList(app) {
   const runs = await api("/api/runs");
@@ -19,18 +19,19 @@ export async function renderList(app) {
         <td><a href="#/run/${r.id}">${esc(r.label || r.hostname)}</a>${r.partial ? ' <span class="badge">прерван</span>' : ""}</td>
         <td>${esc(r.cpu_model)}</td>
         <td>${esc(r.profile)}</td>
-        <td class="num">${valueWithRating(fmtPct(h.full_single_pct), rt.full_single)}</td>
+        <td class="params">${esc(paramsShort(r.params))}</td>
+        <td class="num">${valueWithRating(fmtPct(h.full_alone_pct ?? h.full_single_pct), rt.full_single)}</td>
         <td class="num">${pair}</td>
         <td>${fmtDate(r.started_at)}</td>
       </tr>`;
     })
     .join("");
   app.innerHTML = `<h1>Прогоны</h1>
-    <p class="sub">Цифры — скорость игрового сервера, когда на машине заняты все остальные ядра. 100% — скорость на пустой машине.</p>
+    <p class="sub">Цифры — скорость потока ядра, когда остальные ядра нагружены (как именно — в колонке «Параметры», «соседи»). 100% — скорость потока одного на пустой машине.</p>
     <div class="toolbar"><button class="primary" id="cmp" disabled>Сравнить выбранные</button><span class="muted small">выберите от 2 до 4 прогонов</span></div>
     <div class="panel scroll"><table>
-      <thead><tr><th></th><th>Нода</th><th>Процессор</th><th>Профиль</th>
-        <th class="num">1 сервер на ядро</th><th class="num">2 сервера на ядро</th><th>Дата</th></tr></thead>
+      <thead><tr><th></th><th>Нода</th><th>Процессор</th><th>Профиль</th><th>Параметры</th>
+        <th class="num">Поток один</th><th class="num">Оба потока, каждый</th><th>Дата</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
 
   const btn = app.querySelector("#cmp");

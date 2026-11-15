@@ -1,6 +1,6 @@
 import { api } from "../app.js";
 import { renderChart } from "../components/chart.js";
-import { esc, fmtDate, fmtInt, fmtPct, fmtTimes, valueWithRating } from "../texts.js";
+import { esc, fmtDate, fmtInt, fmtPct, fmtTimes, paramsShort, valueWithRating } from "../texts.js";
 
 const colors = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)"];
 
@@ -9,7 +9,7 @@ const paramNames = {
   mix: "смесь нагрузки",
   mem_size_mb: "размер буфера памяти",
   duration_ms: "длительность замера",
-  bg_threads: "потоки фоновых ядер",
+  bg_threads: "нагрузка на соседние ядра (--bg-threads)",
   order: "порядок загрузки",
   kernels_version: "версия нагрузки",
 };
@@ -39,12 +39,6 @@ export async function renderCompare(app, ids) {
   const name = (r) => r.run.label || r.run.hostname;
   const base0 = runs[0].summary.baseline_tps;
   const diff = differences(runs);
-  const fit = (r, field) => {
-    const d = (r.summary.node.density || []).find((x) => x.min_pct === 90);
-    if (!d) return "—";
-    if (d[field] < 0) return "—";
-    return d[field] > 0 ? `до ${d[field]}` : "ни одного";
-  };
 
   const row = (title, cell) => `<tr><th>${title}</th>${runs.map((r, i) => `<td class="num">${cell(r, i)}</td>`).join("")}</tr>`;
   const table = `<div class="panel scroll"><table>
@@ -52,14 +46,13 @@ export async function renderCompare(app, ids) {
     <tbody>
       ${row("Процессор", (r) => esc(r.run.cpu.model))}
       ${row("Профиль", (r) => esc(r.run.params.profile))}
+      ${row("Параметры", (r) => `<span class="small wrap">${esc(paramsShort(r.run.params))}</span>`)}
       ${row("Дата", (r) => fmtDate(r.run.started_at))}
       ${row("Скорость одного потока, тиков/с", (r) => (r.summary.baseline_tps > 0 ? fmtInt(r.summary.baseline_tps) : "—"))}
       ${row(`Скорость ядра относительно «${esc(name(runs[0]))}»`, (r) => fmtPct(base0 > 0 ? (100 * r.summary.baseline_tps) / base0 : -1))}
       ${row("Оба потока ядра нагружены: 1-й и 2-й поток", (r) => (r.summary.has_pair ? valueWithRating(`${fmtPct(r.summary.ht_a_pct)} и ${fmtPct(r.summary.ht_b_pct)}`, r.summary.ratings.ht) : "HT нет"))}
       ${row("Поток один, остальные ядра нагружены", (r) => valueWithRating(fmtPct(r.summary.full_alone_pct), r.summary.ratings.full_single))}
       ${row("Оба потока нагружены, остальные ядра нагружены: каждый", (r) => (r.summary.has_pair ? valueWithRating(fmtPct(r.summary.full_pair_pct), r.summary.ratings.full_pair) : "HT нет"))}
-      ${row("Помещается серверов по одному на ядро, каждый не медленнее 90%", (r) => fit(r, "isolated"))}
-      ${row("Помещается серверов по два на ядро, каждый не медленнее 90%", (r) => (r.summary.has_pair ? fit(r, "packed") : "HT нет"))}
       ${row("Лаги при полной загрузке", (r) => valueWithRating(fmtTimes(r.summary.lag_ratio), r.summary.ratings.lag))}
     </tbody></table></div>`;
 

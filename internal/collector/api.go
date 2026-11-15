@@ -36,6 +36,7 @@ type Meta struct {
 
 type Headline struct {
 	FullSinglePct  float64                   `json:"full_single_pct"`
+	FullAlonePct   float64                   `json:"full_alone_pct"`
 	FullPairPct    float64                   `json:"full_pair_pct"`
 	HTPerThreadPct float64                   `json:"ht_per_thread_pct"`
 	BaselineTPS    float64                   `json:"baseline_tps"`
@@ -164,6 +165,7 @@ func (s *server) listRuns(w http.ResponseWriter, r *http.Request) {
 		if sum, err := s.summary(x.ID, x.raw); err == nil {
 			x.Headline = Headline{
 				FullSinglePct:  sum.FullSinglePct,
+				FullAlonePct:   sum.FullAlonePct,
 				FullPairPct:    sum.FullPairPct,
 				HTPerThreadPct: sum.HTPerThreadPct,
 				BaselineTPS:    sum.BaselineTPS,

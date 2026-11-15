@@ -1,7 +1,7 @@
 import { api } from "../app.js";
 import { renderChart } from "../components/chart.js";
 import { renderCoreMap } from "../components/coremap.js";
-import { esc, fmtDate, fmtDec, fmtInt, fmtMHz, fmtPct, fmtTimes, groupKindWord, metricText, othersLoaded, ratingHTML, valueWithRating } from "../texts.js";
+import { esc, fmtDate, fmtDec, fmtInt, fmtMHz, fmtPct, fmtTimes, groupKindWord, metricText, othersLoaded, paramsShort, paramsRows, commandLine, ratingHTML, valueWithRating } from "../texts.js";
 
 const C = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)", "var(--series-5)"];
 
@@ -20,14 +20,12 @@ function matrix(s, full) {
     rows.push(`<tr><th>Оба потока ядра нагружены: скорость каждого</th>
       <td class="num">${valueWithRating(fmtPct(s.ht_per_thread_pct), r.ht)}</td>
       <td class="num">${valueWithRating(fmtPct(s.full_pair_pct), r.full_pair)}</td></tr>`);
-    rows.push(`<tr><th>Оба потока ядра вместе</th>
-      <td class="num">${fmtPct(s.ht_total_pct)}</td><td class="num">${fmtPct(s.full_pair_sum_pct)}</td></tr>`);
   }
   return `<div class="scroll"><table class="matrix"><thead><tr><th></th>
     <th class="num">Остальные ядра свободны</th><th class="num">${esc(full)}</th></tr></thead>
     <tbody>${rows.join("")}</tbody></table></div>
     <p class="muted small">100% — скорость потока, когда он один на пустой машине${s.baseline_tps > 0 ? `: ${fmtInt(s.baseline_tps)} тиков/с` : ""}.
-      ${s.has_pair ? "«Оба потока вместе» — сумма двух потоков: 170% значит, что ядро с двумя нагруженными потоками делает работу 1,7 потока." : "HT выключен или недоступен: второй поток не тестировался."}</p>`;
+      ${s.has_pair ? "" : "HT выключен или недоступен: второй поток не тестировался."}</p>`;
 }
 
 // Every core as a pair of its threads, in percent or in ticks per second.
@@ -46,19 +44,27 @@ function pairTable(s, full, unit) {
     const notes = [c.weak ? "медленное" : "", c.drift ? `дрейф ${Math.round(c.drift_pct)}%` : "", c.noisy ? "помехи" : ""].filter(Boolean).join(", ");
     const baseB = c.base_b_tps > 0 ? c.base_b_tps : c.base_tps;
     return `<tr class="first"><td${span}>${c.core}</td><td>CPU ${c.cpu_a}</td>
-        <td class="num grp">${idle(c.base_tps)}</td><td class="num">${val(c.ht_a_pct, c.base_tps)}</td><td class="num"${span}>${val(c.ht_total_pct, c.base_tps)}</td>
-        <td class="num grp">${val(c.full_single_pct, c.base_tps)}</td><td class="num">${val(c.full_pair_a_pct, c.base_tps)}</td><td class="num"${span}>${val(c.full_pair_sum_pct, c.base_tps)}</td>
+        <td class="num grp">${idle(c.base_tps)}</td><td class="num">${val(c.ht_a_pct, c.base_tps)}</td>
+        <td class="num grp">${val(c.full_single_pct, c.base_tps)}</td><td class="num">${val(c.full_pair_a_pct, c.base_tps)}</td>
         <td${span} class="grp">${notes}</td></tr>` +
       (two ? `<tr><td>CPU ${c.cpu_b}</td>
         <td class="num grp">${idle(c.base_b_tps)}</td><td class="num">${val(c.ht_b_pct, baseB)}</td>
         <td class="num grp">${val(c.full_solo_b_pct, baseB)}</td><td class="num">${val(c.full_pair_b_pct, baseB)}</td></tr>` : "");
   }).join("");
   return `<div class="scroll"><table class="compact pairs"><thead>
-    <tr><th rowspan="2">Ядро</th><th rowspan="2">Поток</th><th colspan="3" class="grp">Остальные ядра свободны</th>
-      <th colspan="3" class="grp">${esc(full)}</th><th rowspan="2" class="grp">Заметки</th></tr>
-    <tr><th class="num grp">один</th><th class="num">сосед нагружен</th><th class="num">оба вместе</th>
-      <th class="num grp">один</th><th class="num">сосед нагружен</th><th class="num">оба вместе</th></tr>
+    <tr><th rowspan="2">Ядро</th><th rowspan="2">Поток</th><th colspan="2" class="grp">Остальные ядра свободны</th>
+      <th colspan="2" class="grp">${esc(full)}</th><th rowspan="2" class="grp">Заметки</th></tr>
+    <tr><th class="num grp">один</th><th class="num">сосед нагружен</th>
+      <th class="num grp">один</th><th class="num">сосед нагружен</th></tr>
     </thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// paramsBlock shows the settings of the run and the command that repeats it.
+function paramsBlock(run) {
+  return `<details class="panel params-panel"><summary>Параметры прогона: ${esc(paramsShort(run.params))}</summary>
+    <dl class="params">${paramsRows(run).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+    <p class="muted small" style="margin:12px 0 4px">Повторить этот прогон:</p>
+    <pre class="cmd">${esc(commandLine(run))}</pre></details>`;
 }
 
 // nodeText names the two node lines depending on how neighbour cores were loaded.
@@ -100,19 +106,6 @@ function nodeSeries(node, text) {
   return { xs, series };
 }
 
-function densityTable(s, text) {
-  const d = s.node.density || [];
-  const iso = d.some((x) => x.isolated >= 0);
-  const packed = d.some((x) => x.packed >= 0);
-  if (!iso && !packed) return "";
-  const n = (v) => (v > 0 ? `до ${v}` : "ни одного");
-  return `<h3 class="sub-h">Сколько серверов помещается на ноду</h3>
-    <div class="scroll"><table class="compact narrow"><thead><tr><th>Чтобы каждый сервер работал</th>
-      ${iso ? `<th class="num">${esc(text.iso)}</th>` : ""}${packed ? `<th class="num">${esc(text.packed)}</th>` : ""}</tr></thead><tbody>
-    ${d.map((x) => `<tr><td>не медленнее ${x.min_pct}%</td>${iso ? `<td class="num">${n(x.isolated)}</td>` : ""}${packed ? `<td class="num">${n(x.packed)}</td>` : ""}</tr>`).join("")}
-    </tbody></table></div>`;
-}
-
 function nodeTable(node, text, hasFreq) {
   const xs = [...new Set([...node.isolated, ...node.packed].map((p) => p.servers))].sort((a, b) => a - b);
   const iso = new Map(node.isolated.map((p) => [p.servers, p]));
@@ -142,7 +135,6 @@ function threadSeries(curve, names) {
     { name: `${names.b} один`, color: C[1], values: curve.solo_b },
     { name: `${names.a}, сосед нагружен`, color: C[2], values: curve.pair_a, noisy: curve.noisy },
     { name: `${names.b}, сосед нагружен`, color: C[3], values: curve.pair_b, noisy: curve.noisy },
-    { name: "оба потока вместе", color: C[4], values: curve.pair_sum },
   ];
   return all.filter((s) => s.values.some((v) => v >= 0));
 }
@@ -150,12 +142,11 @@ function threadSeries(curve, names) {
 function threadTable(curve, names, hasFreq) {
   const cell = (v) => `<td class="num">${fmtPct(v)}</td>`;
   const rows = curve.loaded.map((k, i) => `<tr><td>${k}${curve.noisy[i] ? " ⚠" : ""}</td>
-    ${cell(curve.single[i])}${cell(curve.solo_b[i])}${cell(curve.pair_a[i])}${cell(curve.pair_b[i])}${cell(curve.pair_sum[i])}
+    ${cell(curve.single[i])}${cell(curve.solo_b[i])}${cell(curve.pair_a[i])}${cell(curve.pair_b[i])}
     ${hasFreq ? `<td class="num">${fmtMHz(curve.mhz[i])}</td><td class="num">${fmtMHz(curve.pair_mhz[i])}</td>` : ""}</tr>`).join("");
   return `<div class="scroll"><table class="compact"><thead><tr><th>Загружено других ядер</th>
     <th class="num">${esc(names.a)} один</th><th class="num">${esc(names.b)} один</th>
     <th class="num">${esc(names.a)}, сосед нагружен</th><th class="num">${esc(names.b)}, сосед нагружен</th>
-    <th class="num">оба вместе</th>
     ${hasFreq ? '<th class="num">частота, один поток</th><th class="num">частота, оба потока</th>' : ""}
     </tr></thead><tbody>${rows}</tbody></table></div>`;
 }
@@ -194,6 +185,7 @@ export async function renderRun(app, id) {
   app.innerHTML = `
     <h1>${esc(run.label || run.hostname)}${run.partial ? ' <span class="badge">прерван</span>' : ""}</h1>
     <p class="sub">${esc(run.cpu.model)} · профиль <b>${esc(p.profile)}</b> · ${fmtDate(run.started_at)}</p>
+    ${paramsBlock(run)}
 
     <div class="panel">
       <h2 class="in">Сводка: скорость потока ядра в четырёх условиях</h2>
@@ -208,7 +200,7 @@ export async function renderRun(app, id) {
       <div class="toolbar"><span>Показывать:</span>
         <div class="tabs" id="unit"><button data-unit="pct" class="active">проценты</button><button data-unit="tps">тики в секунду</button></div></div>
       <div id="pairs"></div>
-      <p class="muted small">«Один» — второй поток этого ядра свободен. «Сосед нагружен» — занят. «Оба вместе» — сумма двух потоков.
+      <p class="muted small">«Один» — второй поток этого ядра свободен. «Сосед нагружен» — занят.
         Проценты — от скорости этого же потока, когда он один на пустой машине.</p>
     </div>
 
@@ -225,7 +217,6 @@ export async function renderRun(app, id) {
     <div class="panel">
       <div id="nodechart"></div>
       <p class="muted small">По горизонтали — сколько серверов на ноде (один сервер занимает один поток), по вертикали — скорость сервера. ${text.note} ${orderNote}</p>
-      ${densityTable(s, text)}
       <details><summary>Таблица по числу серверов</summary>${nodeTable(node, text, s.has_freq)}</details>
     </div>
 
@@ -237,11 +228,8 @@ export async function renderRun(app, id) {
       <div id="map"></div>
     </div>
 
-    <details><summary>Лаги и частота по ядрам, параметры теста</summary>
-      <div class="panel" style="margin-top:10px">${extraTable(s)}
-      <p class="muted small">Параметры: смесь ${esc(Object.entries(p.mix || {}).map(([k, v]) => `${k}=${v}`).join(", "))}
-        · буфер памяти ${p.mem_size_mb} МБ · замер ${p.duration_ms / 1000} с · прогрев ${p.warmup_ms / 1000} с
-        · шаг ${p.step} · у соседних ядер загружено потоков: ${p.bg_threads || "как у тестируемого"} · версия ${esc(run.tool_version)} · частота: ${esc(run.cpu.freq_source)}</p></div>
+    <details><summary>Лаги и частота по ядрам</summary>
+      <div class="panel" style="margin-top:10px">${extraTable(s)}</div>
     </details>`;
 
   let unit = "pct";

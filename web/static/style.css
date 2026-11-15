@@ -210,3 +210,13 @@ table.pairs thead th.num { text-align: right; }
 table.pairs tr.first td { border-top: 1px solid var(--border); }
 table.pairs td { border-bottom: none; }
 .toolbar .tabs { margin: 0; }
+
+td.params { white-space: normal; min-width: 220px; max-width: 360px; font-size: 13px; color: var(--text-2); }
+dl.params { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0; }
+dl.params dt { color: var(--text-2); }
+dl.params dd { margin: 0; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { dl.params { grid-template-columns: 1fr; gap: 2px; } dl.params dd { margin-bottom: 6px; } }
+.params-panel { margin-bottom: 14px; }
+.params-panel > summary { color: var(--text-2); cursor: pointer; }
+.params-panel[open] > summary { margin-bottom: 12px; }
+.wrap { white-space: normal; display: inline-block; max-width: 320px; text-align: left; }

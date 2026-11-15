@@ -74,3 +74,92 @@ export function othersLoaded(bgThreads) {
   if (bgThreads === 1) return "Остальные ядра нагружены одним потоком";
   return "Остальные ядра нагружены так же, как тестируемое";
 }
+
+// bgText describes how neighbour cores were loaded (params.bg_threads).
+export function bgText(bg) {
+  if (bg === 2) return "оба потока";
+  if (bg === 1) return "один поток";
+  return "как у тестируемого ядра (auto)";
+}
+
+// cpuList formats [0,1,2,3,8] as "0–3, 8".
+export function cpuList(list) {
+  if (!list || !list.length) return "все";
+  const s = [...list].sort((a, b) => a - b);
+  const out = [];
+  for (let i = 0; i < s.length; i++) {
+    let j = i;
+    while (j + 1 < s.length && s[j + 1] === s[j] + 1) j++;
+    out.push(j > i + 1 ? `${s[i]}–${s[j]}` : j === i + 1 ? `${s[i]}, ${s[j]}` : `${s[i]}`);
+    i = j;
+  }
+  return out.join(", ");
+}
+
+function secs(ms) {
+  return ms % 1000 === 0 ? `${ms / 1000} с` : `${ms} мс`;
+}
+
+function flagDur(ms) {
+  return ms % 1000 === 0 ? `${ms / 1000}s` : `${ms}ms`;
+}
+
+function mixText(mix) {
+  return Object.entries(mix || {}).sort().map(([k, v]) => `${k}=${v}`).join(",");
+}
+
+const defaultModes = "single,solo_b,pair";
+
+// paramsShort is a one-line summary of the settings that change the results.
+export function paramsShort(p) {
+  if (!p) return "";
+  const parts = [`соседи: ${bgText(p.bg_threads).replace(" (auto)", "")}`, `ядра: ${cpuList(p.cores)}`];
+  if (p.step > 1) parts.push(`шаг ${p.step}`);
+  if (p.order === "far") parts.push("сначала чужой чиплет/сокет");
+  if ((p.modes || []).join(",") !== defaultModes) parts.push(`режимы: ${(p.modes || []).join(",")}`);
+  parts.push(`замер ${secs(p.duration_ms)}`);
+  if (p.reps > 1) parts.push(`повторов ${p.reps}`);
+  return parts.join(" · ");
+}
+
+// paramsRows lists every setting of a run as [name, value].
+export function paramsRows(run) {
+  const p = run.params;
+  const rows = [
+    ["Профиль нагрузки", p.profile === "custom" ? `своя смесь: ${mixText(p.mix)}` : `${p.profile} (${mixText(p.mix)})`],
+  ];
+  if (p.mem_size_mb > 0) rows.push(["Буфер памяти на поток", `${p.mem_size_mb} МБ`]);
+  rows.push(
+    ["Нагрузка на соседние ядра (--bg-threads)", bgText(p.bg_threads)],
+    ["Тестируемые ядра (--cores)", cpuList(p.cores)],
+    ["Что мерилось (--modes)", (p.modes || []).map((m) => ({ single: "1-й поток один", solo_b: "2-й поток один", pair: "оба потока" })[m] || m).join(", ")],
+    ["Шаг нагрузки (--step)", `${p.step} ${p.step === 1 ? "ядро" : "ядра"} за шаг`],
+    ["Порядок загрузки (--order)", p.order === "far" ? "far: сначала чужой чиплет/сокет" : "near: сначала свой чиплет/сокет"],
+    ["Замер и прогрев одной точки", `${secs(p.duration_ms)} + ${secs(p.warmup_ms)}`],
+    ["Повторов точки (--reps)", String(p.reps)],
+    ["Порог помех (--noise-max)", `${p.noise_max_pct}%`],
+    ["Источник частоты", run.cpu.freq_source === "none" ? "не измерялась" : run.cpu.freq_source],
+    ["Версия утилиты", run.tool_version],
+  );
+  return rows;
+}
+
+// commandLine rebuilds the command that repeats the run.
+export function commandLine(run) {
+  const p = run.params;
+  const a = ["smtbench run"];
+  if (p.profile === "custom") a.push(`--mix ${mixText(p.mix)}`);
+  else a.push(`--profile ${p.profile}`);
+  if (p.mem_size_mb > 0) a.push(`--mem-size ${p.mem_size_mb}MB`);
+  a.push(`--bg-threads ${p.bg_threads === 0 ? "auto" : p.bg_threads}`);
+  if (p.cores && p.cores.length) a.push(`--cores ${[...p.cores].sort((x, y) => x - y).join(",")}`);
+  if ((p.modes || []).join(",") !== defaultModes) a.push(`--modes ${(p.modes || []).join(",")}`);
+  if (p.step !== 1) a.push(`--step ${p.step}`);
+  if (p.order !== "near") a.push(`--order ${p.order}`);
+  if (p.duration_ms !== 3000) a.push(`--duration ${flagDur(p.duration_ms)}`);
+  if (p.warmup_ms !== 1000) a.push(`--warmup ${flagDur(p.warmup_ms)}`);
+  if (p.reps !== 1) a.push(`--reps ${p.reps}`);
+  if (p.noise_max_pct !== 3) a.push(`--noise-max ${p.noise_max_pct}`);
+  a.push(`--label ${run.label}`);
+  return a.join(" ");
+}

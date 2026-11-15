@@ -131,13 +131,6 @@ func rated(s summary.Summary, key string) string {
 
 func round(v float64) int { return int(math.Round(v)) }
 
-func countOrNone(n int) string {
-	if n <= 0 {
-		return "ни одного"
-	}
-	return strconv.Itoa(n)
-}
-
 // pctCell formats a percentage; missing values are "—".
 func pctCell(v float64) string {
 	if v < 0 {
