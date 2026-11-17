@@ -29,8 +29,9 @@ type Config struct {
 	Freq     freq.Source     // nil: MHz is 0
 	// PrewarmMS loads the first window's CPUs before the first measurement so
 	// the first core is not measured while the CPU is still ramping up.
-	PrewarmMS int
-	Progress  func(Progress)
+	PrewarmMS    int
+	Progress     func(Progress)
+	StabProgress func(StabProgress)
 }
 
 const maxRetries = 2
@@ -96,6 +97,10 @@ func (r *runner) start(ws []plan.Window) error {
 			cpus[c] = true
 		}
 	}
+	return r.startCPUs(cpus)
+}
+
+func (r *runner) startCPUs(cpus map[int]bool) error {
 	ready := make(chan error, len(cpus))
 	for c := range cpus {
 		r.workers[c] = startWorker(c, r.cfg.Mix, r.cfg.MemBytes, r.cfg.Clock, r.cfg.Freq, &r.wg, ready)
@@ -208,7 +213,7 @@ func (r *runner) measureReps(ctx context.Context, cpus, idle []int) ([]result.Th
 		if r.cfg.Load != nil {
 			before, _ = r.cfg.Load.Sample()
 		}
-		ths, foreign, err := r.measure(ctx, cpus)
+		ths, foreign, err := r.measure(ctx, cpus, r.cfg.Params.DurationMS)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -226,10 +231,10 @@ func (r *runner) measureReps(ctx context.Context, cpus, idle []int) ([]result.Th
 	return runs[len(runs)/2], noise, nil
 }
 
-func (r *runner) measure(ctx context.Context, cpus []int) ([]result.ThreadResult, float64, error) {
+func (r *runner) measure(ctx context.Context, cpus []int, durMS int) ([]result.ThreadResult, float64, error) {
 	done := make(chan sample, len(cpus))
 	clock := r.cfg.Clock
-	deadline := clock.Now() + uint64(float64(r.cfg.Params.DurationMS)*1000*clock.TicksPerUs)
+	deadline := clock.Now() + uint64(float64(durMS)*1000*clock.TicksPerUs)
 	for _, c := range cpus {
 		r.workers[c].cmds <- cmd{st: stMeasure, deadline: deadline, done: done}
 		r.state[c] = stLoad // workers fall back to load after measuring

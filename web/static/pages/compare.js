@@ -1,6 +1,6 @@
 import { api } from "../app.js";
 import { renderChart } from "../components/chart.js";
-import { esc, fmtDate, fmtInt, fmtPct, fmtTimes, paramsShort, valueWithRating } from "../texts.js";
+import { esc, fmtDate, fmtInt, fmtPct, fmtTimes, paramsShort, valueWithRating, variantDims, variantName } from "../texts.js";
 
 const colors = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)"];
 
@@ -11,6 +11,8 @@ const paramNames = {
   duration_ms: "длительность замера",
   bg_threads: "нагрузка на соседние ядра (--bg-threads)",
   order: "порядок загрузки",
+  tick_rate: "тикрейт в тесте стабильности",
+  tick_load_pct: "нагрузка сервера в тесте стабильности (--tick-load)",
   kernels_version: "версия нагрузки",
 };
 
@@ -36,9 +38,21 @@ function mergePoints(lists) {
 
 export async function renderCompare(app, ids) {
   const runs = await Promise.all(ids.slice(0, 4).map((id) => api(`/api/runs/${id}`)));
-  const name = (r) => r.run.label || r.run.hostname;
+  const label = (r) => r.run.label || r.run.hostname;
+  // runs of one node are told apart by the settings that differ between them
+  const dims = variantDims.filter((d) => new Set(runs.map((r) => d.value(r.run.params))).size > 1);
+  const sameLabel = new Set(runs.map(label)).size < runs.length;
+  const name = (r) => (sameLabel && dims.length ? `${label(r)} · ${variantName(r.run.params, dims)}` : label(r));
   const base0 = runs[0].summary.baseline_tps;
   const diff = differences(runs);
+  // tick rate scenarios present in any of the runs, in test order
+  const stabRows = [];
+  for (const r of runs) {
+    for (const x of r.summary.stab?.rows || []) {
+      if (!stabRows.some(([n]) => n === x.name)) stabRows.push([x.name, x.title]);
+    }
+  }
+  const stabRow = (r, name) => (r.summary.stab?.rows || []).find((x) => x.name === name);
 
   const row = (title, cell) => `<tr><th>${title}</th>${runs.map((r, i) => `<td class="num">${cell(r, i)}</td>`).join("")}</tr>`;
   const table = `<div class="panel scroll"><table>
@@ -54,6 +68,10 @@ export async function renderCompare(app, ids) {
       ${row("Поток один, остальные ядра нагружены", (r) => valueWithRating(fmtPct(r.summary.full_alone_pct), r.summary.ratings.full_single))}
       ${row("Оба потока нагружены, остальные ядра нагружены: каждый", (r) => (r.summary.has_pair ? valueWithRating(fmtPct(r.summary.full_pair_pct), r.summary.ratings.full_pair) : "HT нет"))}
       ${row("Лаги при полной загрузке", (r) => valueWithRating(fmtTimes(r.summary.lag_ratio), r.summary.ratings.lag))}
+      ${stabRows.map(([name, title]) => row(`Тикрейт, худшая секунда / тик 1 из 100: ${esc(title)}`, (r) => {
+        const x = stabRow(r, name);
+        return x ? valueWithRating(`${fmtPct(x.worst_sec_pct)} / ${fmtPct(x.work_p99_pct)}`, x.rating) : "—";
+      })).join("")}
     </tbody></table></div>`;
 
   app.innerHTML = `<h1>Сравнение</h1>

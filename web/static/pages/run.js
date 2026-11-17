@@ -1,7 +1,7 @@
 import { api } from "../app.js";
 import { renderChart } from "../components/chart.js";
 import { renderCoreMap } from "../components/coremap.js";
-import { esc, fmtDate, fmtDec, fmtInt, fmtMHz, fmtPct, fmtTimes, groupKindWord, metricText, othersLoaded, paramsShort, paramsRows, commandLine, ratingHTML, valueWithRating } from "../texts.js";
+import { esc, fmtDate, fmtFrac, fmtInt, fmtMHz, fmtMs, fmtPct, fmtTimes, groupKindWord, metricText, othersLoaded, paramsShort, paramsRows, commandLine, ratingHTML, valueWithRating, variantDims, variantName } from "../texts.js";
 
 const C = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)", "var(--series-5)"];
 
@@ -162,8 +162,108 @@ function extraTable(s) {
     </tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
+// variantsBlock: tabs to switch between runs of one command and their
+// headline numbers side by side.
+async function variantsBlock(run) {
+  if (!run.group_id) return "";
+  const sibs = (await api(`/api/runs?group=${encodeURIComponent(run.group_id)}`))
+    .sort((a, b) => (a.group_index || 0) - (b.group_index || 0));
+  if (sibs.length < 2 && (run.group_total || 0) < 2) return "";
+  const dims = variantDims.filter((d) => new Set(sibs.map((r) => d.value(r.params))).size > 1);
+  const cur = run.params;
+  const tabs = dims.map((d) => {
+    const values = [...new Set(sibs.map((r) => d.value(r.params)))];
+    const links = values.map((v) => {
+      if (v === d.value(cur)) return `<span class="tab active">${esc(v)}</span>`;
+      // the run that differs from this one only in this setting
+      const target = sibs.find((r) => d.value(r.params) === v && dims.every((o) => o === d || o.value(r.params) === o.value(cur)));
+      return target ? `<a class="tab" href="#/run/${target.id}">${esc(v)}</a>` : `<span class="tab off" title="этот вариант не измерен">${esc(v)}</span>`;
+    }).join("");
+    return `<div class="dim"><span class="dim-title">${esc(d.title)}</span>${links}</div>`;
+  }).join("");
+
+  const rows = sibs.map((r) => {
+    const h = r.headline || {};
+    const rt = h.ratings || {};
+    const stab = h.stab;
+    return `<tr class="${r.id === run.run_id ? "current" : ""}">
+      <td><a href="#/run/${r.id}">${esc(dims.length ? variantName(r.params, dims) : r.profile)}</a>${r.partial ? ' <span class="badge">прерван</span>' : ""}</td>
+      <td class="num">${h.has_points === false ? "—" : valueWithRating(fmtPct(h.full_alone_pct), rt.full_single)}</td>
+      <td class="num">${h.has_pair ? valueWithRating(fmtPct(h.full_pair_pct), rt.full_pair) : "—"}</td>
+      <td class="num">${h.has_points === false ? "—" : valueWithRating(fmtTimes(h.lag_ratio), rt.lag)}</td>
+      <td class="num">${stab ? valueWithRating(`${fmtPct(stab.worst_sec_pct)} · тик ${fmtPct(stab.work_p99_pct)}`, rt.stab) : "—"}</td>
+    </tr>`;
+  }).join("");
+  const total = run.group_total || sibs.length;
+  return `<div class="panel">
+    <h2 class="in">Варианты этого запуска</h2>
+    <div class="variants">${tabs}</div>
+    <details${sibs.length > 1 ? " open" : ""}><summary>Все варианты рядом${sibs.length < total ? ` (пройдено ${sibs.length} из ${total})` : ""}</summary>
+    <div class="scroll"><table class="compact"><thead><tr><th>Вариант</th>
+      <th class="num">Поток один, остальные ядра нагружены</th><th class="num">Оба потока, каждый</th><th class="num">Лаги</th>
+      <th class="num">Тикрейт под нагрузкой</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <p class="muted small">Тикрейт под нагрузкой — сценарий «все остальные потоки загружены на 100%»: худшая секунда в процентах от целевого тикрейта
+      и время тика (1 из 100 дольше) в процентах бюджета. Оценка учитывает оба числа.</p></details>
+  </div>`;
+}
+
+const stabColors = [C[0], C[1], C[2], C[3], C[4], "var(--series-6)"];
+
+function stabTable(st) {
+  const rows = st.rows.map((r) => `<tr><td>${esc(r.title)}</td><td class="num">${r.servers}</td>
+    <td class="num">${fmtPct(r.rate_pct)}</td><td class="num">${valueWithRating(fmtPct(r.worst_sec_pct), r.rating)}</td><td class="num">${fmtPct(r.low1_pct)}</td>
+    <td class="num grp">${fmtPct(r.work_pct)}</td><td class="num">${fmtPct(r.work_p99_pct)}</td><td class="num">${fmtPct(r.work_max_pct)}</td>
+    <td class="num grp">${fmtFrac(r.overrun_pct)}</td><td class="num">${fmtMs(r.var_ms)}</td></tr>`).join("");
+  return `<div class="scroll"><table class="compact"><thead>
+    <tr><th rowspan="2">Сценарий</th><th rowspan="2" class="num">Серверов</th><th colspan="3" class="grp">Тикрейт, % от ${st.tick_rate}</th>
+      <th colspan="3" class="grp">Время тика, % бюджета</th><th rowspan="2" class="num grp">Не уложились в бюджет</th><th rowspan="2" class="num">var</th></tr>
+    <tr><th class="num grp">средний</th><th class="num">худшая секунда</th><th class="num">1% low</th>
+      <th class="num grp">среднее</th><th class="num">1 из 100</th><th class="num">самый долгий</th></tr>
+    </thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function stabBlock(st) {
+  if (!st || !st.rows.length) return "";
+  return `<h2>Стабильность тикрейта</h2>
+    <div class="panel">
+      <p>Сервер работает как игровой с тикрейтом ${st.tick_rate}: делает тик и спит до следующего. Бюджет тика — <b>${fmtMs(st.budget_ms)}</b>,
+        работа тика подобрана так, чтобы при непрерывной нагрузке занимать <b>${fmtMs(st.idle_work_ms)}</b> (${st.tick_load_pct}% бюджета). Если тик не укладывается в бюджет, тикрейт падает, как FPS у сервера Source или TPS у Minecraft.</p>
+      ${stabTable(st)}
+      ${st.conclusions.length > 1 ? `<div class="conclusions"><ul>${st.conclusions.slice(1).map((c) => `<li>${esc(c)}</li>`).join("")}</ul></div>` : ""}
+      <div class="toolbar" style="margin-top:16px"><span>График по секундам:</span>
+        <div class="tabs" id="stabview"><button data-v="rate" class="active">тикрейт самого медленного сервера</button><button data-v="work">самый долгий тик</button></div></div>
+      <div id="stabchart"></div>
+      <p class="muted small">Худшая секунда — самая медленная секунда самого медленного сервера. 1% low — тикрейт по 1% самых длинных интервалов между тиками.
+        «1 из 100» — 1% тиков длиннее этого. var — разброс интервала между тиками (как var в stats у Source). Тики, опоздавшие на половину бюджета и больше, сервер пропускает.
+        Каждый сценарий длится ${Math.round(st.duration_ms / 1000)} с.</p>
+    </div>`;
+}
+
+function drawStab(el, st, view) {
+  const n = Math.max(...st.rows.map((r) => r.sec_rate_pct.length));
+  const xs = Array.from({ length: n }, (_, i) => i + 1);
+  renderChart(el, {
+    xs,
+    series: st.rows.map((r, i) => {
+      const vals = view === "rate" ? r.sec_rate_pct : r.sec_max_work_pct;
+      return {
+        name: r.title, color: stabColors[i % stabColors.length],
+        values: xs.map((_, j) => vals[j] ?? -1),
+        labels: xs.map((_, j) => (vals[j] == null ? "" : view === "rate"
+          ? `${Math.round((vals[j] * st.tick_rate) / 100)} из ${st.tick_rate}`
+          : `${fmtPct(vals[j])} · ${fmtMs((vals[j] * st.budget_ms) / 100)}`)),
+      };
+    }),
+    xTitle: "секунда сценария",
+    tooltipTitle: (x) => `секунда ${x}`,
+  });
+}
+
 export async function renderRun(app, id) {
   const { run, summary: s } = await api(`/api/runs/${id}`);
+  const variants = await variantsBlock(run).catch(() => "");
+  const hasRamp = s.cores.length > 0;
   const p = run.params;
   const node = s.node;
   const kind = groupKindWord(run.cpu);
@@ -185,16 +285,17 @@ export async function renderRun(app, id) {
   app.innerHTML = `
     <h1>${esc(run.label || run.hostname)}${run.partial ? ' <span class="badge">прерван</span>' : ""}</h1>
     <p class="sub">${esc(run.cpu.model)} · профиль <b>${esc(p.profile)}</b> · ${fmtDate(run.started_at)}</p>
+    ${variants}
     ${paramsBlock(run)}
-
-    <div class="panel">
+    ${hasRamp ? `<div class="panel">
       <h2 class="in">Сводка: скорость потока ядра в четырёх условиях</h2>
       ${matrix(s, full)}
       <div class="facts">${facts.join("")}</div>
     </div>
-    ${node.conclusions.length ? `<div class="panel conclusions"><b>Выводы</b><ul>${node.conclusions.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></div>` : ""}
+    ${node.conclusions.length ? `<div class="panel conclusions"><b>Выводы</b><ul>${node.conclusions.map((c) => `<li>${esc(c)}</li>`).join("")}</ul></div>` : ""}` : ""}
     ${warnings.length ? `<div class="warnings"><b>Обратите внимание</b><ul>${warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul></div>` : ""}
-
+    ${stabBlock(s.stab)}
+  ` + (!hasRamp ? "" : `
     <h2>По парам: ядро и его второй поток</h2>
     <div class="panel">
       <div class="toolbar"><span>Показывать:</span>
@@ -230,7 +331,18 @@ export async function renderRun(app, id) {
 
     <details><summary>Лаги и частота по ядрам</summary>
       <div class="panel" style="margin-top:10px">${extraTable(s)}</div>
-    </details>`;
+    </details>`);
+
+  if (s.stab && s.stab.rows.length) {
+    const el = app.querySelector("#stabchart");
+    const btns = app.querySelectorAll("#stabview button");
+    btns.forEach((b) => b.addEventListener("click", () => {
+      btns.forEach((x) => x.classList.toggle("active", x === b));
+      drawStab(el, s.stab, b.dataset.v);
+    }));
+    drawStab(el, s.stab, "rate");
+  }
+  if (!hasRamp) return;
 
   let unit = "pct";
   const drawPairs = () => { app.querySelector("#pairs").innerHTML = pairTable(s, full, unit); };

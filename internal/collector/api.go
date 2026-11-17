@@ -32,6 +32,10 @@ type Meta struct {
 	Headline    Headline  `json:"headline"`
 	// Params are the settings the run was started with.
 	Params result.Params `json:"params"`
+	// Runs started by one command with several variants share GroupID.
+	GroupID    string `json:"group_id,omitempty"`
+	GroupIndex int    `json:"group_index,omitempty"`
+	GroupTotal int    `json:"group_total,omitempty"`
 }
 
 type Headline struct {
@@ -41,7 +45,18 @@ type Headline struct {
 	HTPerThreadPct float64                   `json:"ht_per_thread_pct"`
 	BaselineTPS    float64                   `json:"baseline_tps"`
 	HasPair        bool                      `json:"has_pair"`
+	HasPoints      bool                      `json:"has_points"`
+	LagRatio       float64                   `json:"lag_ratio"`
 	Ratings        map[string]summary.Rating `json:"ratings"`
+	// Tick rate test, the key scenario (see summary.Stab.Key); nil without it.
+	Stab *StabHeadline `json:"stab,omitempty"`
+}
+
+type StabHeadline struct {
+	TickRate    int     `json:"tick_rate"`
+	Scenario    string  `json:"scenario"`
+	WorstSecPct float64 `json:"worst_sec_pct"`
+	WorkP99Pct  float64 `json:"work_p99_pct"`
 }
 
 var downloads = map[string]bool{"smtbench-linux-amd64": true, "smtbench-windows-amd64.exe": true}
@@ -154,13 +169,20 @@ func (s *server) listRuns(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "ошибка базы данных")
 		return
 	}
+	group := r.URL.Query().Get("group")
 	out := make([]Meta, 0, len(rows))
 	for _, x := range rows {
 		var head struct {
-			Params result.Params `json:"params"`
+			Params     result.Params `json:"params"`
+			GroupID    string        `json:"group_id"`
+			GroupIndex int           `json:"group_index"`
+			GroupTotal int           `json:"group_total"`
 		}
 		if json.Unmarshal(x.raw, &head) == nil {
-			x.Params = head.Params
+			x.Params, x.GroupID, x.GroupIndex, x.GroupTotal = head.Params, head.GroupID, head.GroupIndex, head.GroupTotal
+		}
+		if group != "" && x.GroupID != group {
+			continue
 		}
 		if sum, err := s.summary(x.ID, x.raw); err == nil {
 			x.Headline = Headline{
@@ -170,7 +192,13 @@ func (s *server) listRuns(w http.ResponseWriter, r *http.Request) {
 				HTPerThreadPct: sum.HTPerThreadPct,
 				BaselineTPS:    sum.BaselineTPS,
 				HasPair:        sum.HasPair,
+				HasPoints:      len(sum.Cores) > 0,
+				LagRatio:       sum.LagRatio,
 				Ratings:        sum.Ratings,
+			}
+			if row, ok := sum.Stab.KeyRow(); ok {
+				x.Headline.Stab = &StabHeadline{TickRate: sum.Stab.TickRate, Scenario: row.Name,
+					WorstSecPct: row.WorstSecPct, WorkP99Pct: row.WorkP99Pct}
 			}
 		}
 		out = append(out, x.Meta)

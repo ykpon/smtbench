@@ -45,22 +45,34 @@ func Duration(d time.Duration) string {
 	return fmt.Sprintf("%d ч %d мин", int(d.Hours()), int(d.Minutes())%60)
 }
 
-func Header(w io.Writer, t *topology.Topology, ws []plan.Window, p result.Params, est time.Duration) {
+// Machine prints the CPU line.
+func Machine(w io.Writer, t *topology.Topology) {
 	ht := "нет"
 	if t.HasSMT() {
 		ht = "да"
 	}
 	fmt.Fprintf(w, "Процессор: %s · сокетов: %d · ядер: %d · потоков: %d · HT: %s\n", t.Model, t.Packages, len(t.Cores), len(t.CPUs), ht)
+}
+
+// Plan prints the settings of one run and its estimate.
+func Plan(w io.Writer, ws []plan.Window, sw []plan.StabWindow, p result.Params, est time.Duration) {
 	cores := map[int]bool{}
 	for _, x := range ws {
 		cores[x.Core] = true
 	}
-	fmt.Fprintf(w, "Профиль: %s (%s) · ядер в тесте: %d · окон: %d · замер %s + прогрев %s\n",
-		p.Profile, mixString(p.Mix), len(cores), len(ws),
-		Duration(time.Duration(p.DurationMS)*time.Millisecond), Duration(time.Duration(p.WarmupMS)*time.Millisecond))
-	bg := map[int]string{0: "столько же потоков, сколько у тестируемого", 1: "один поток", 2: "оба потока"}[p.BgThreads]
-	fmt.Fprintf(w, "Порядок загрузки: %s · у соседних ядер нагружается: %s\n", p.Order, bg)
-	fmt.Fprintf(w, "Оценка времени: ~%s\n\n", Duration(est))
+	fmt.Fprintf(w, "Профиль: %s (%s)", p.Profile, mixString(p.Mix))
+	if len(ws) > 0 {
+		fmt.Fprintf(w, " · ядер в тесте: %d · окон: %d · замер %s + прогрев %s", len(cores), len(ws),
+			Duration(time.Duration(p.DurationMS)*time.Millisecond), Duration(time.Duration(p.WarmupMS)*time.Millisecond))
+		bg := map[int]string{0: "столько же потоков, сколько у тестируемого", 1: "один поток", 2: "оба потока"}[p.BgThreads]
+		fmt.Fprintf(w, "\nПорядок загрузки: %s · у соседних ядер нагружается: %s", p.Order, bg)
+	}
+	fmt.Fprintln(w)
+	if len(sw) > 0 {
+		fmt.Fprintf(w, "Тест тикрейта: тикрейт %d, работа сервера — %d%% бюджета тика, сценариев: %d по %s\n",
+			p.TickRate, p.TickLoadPct, len(sw), Duration(time.Duration(p.StabMS)*time.Millisecond))
+	}
+	fmt.Fprintf(w, "Оценка времени: ~%s\n", Duration(est))
 }
 
 func mixString(m map[string]int) string {
@@ -159,6 +171,19 @@ func othersLoaded(bgThreads int) string {
 
 func Summary(w io.Writer, r *result.Run, s summary.Summary) {
 	fmt.Fprintf(w, "\nИтог (%s, профиль %s)\n", r.Label, r.Params.Profile)
+	if len(r.Points) > 0 || s.Stab == nil {
+		throughput(w, r, s)
+	}
+	stab(w, s.Stab)
+	for _, warn := range s.Warnings {
+		fmt.Fprintf(w, "  ! %s\n", warn)
+	}
+	for _, warn := range r.Warnings {
+		fmt.Fprintf(w, "  ! %s\n", warn)
+	}
+}
+
+func throughput(w io.Writer, r *result.Run, s summary.Summary) {
 	if s.BaselineTPS > 0 {
 		fmt.Fprintf(w, "100%% — скорость потока, когда он один на пустой машине: %s тиков/с\n", Int(s.BaselineTPS))
 	}
@@ -203,13 +228,93 @@ func Summary(w io.Writer, r *result.Run, s summary.Summary) {
 	}
 
 	pairs(w, s, full)
+}
 
-	for _, warn := range s.Warnings {
-		fmt.Fprintf(w, "  ! %s\n", warn)
+// StabLine prints one finished scenario of the tick rate test.
+func StabLine(w io.Writer, p runner.StabProgress) {
+	if p.Done == 1 {
+		fmt.Fprintf(w, "Тест тикрейта: тикрейт %d, бюджет тика %s, работа тика рассчитана на %s\n",
+			p.Stab.TickRate, Ms(1e3/float64(p.Stab.TickRate)), Ms(p.Stab.IdleWorkUs/1000))
 	}
-	for _, warn := range r.Warnings {
-		fmt.Fprintf(w, "  ! %s\n", warn)
+	r := summary.StabScenario(p.Stab, p.Scenario)
+	fmt.Fprintf(w, "[%d/%d] %s: тикрейт %s, худшая секунда %s · тик в среднем %s бюджета, 1 из 100 дольше %s\n",
+		p.Done, p.Total, r.Title, pctCell(r.RatePct), pctCell(r.WorstSecPct), pctCell(r.WorkPct), pctCell(r.WorkP99Pct))
+}
+
+// Ms formats milliseconds: "15,6 мс", "120 мс".
+func Ms(v float64) string {
+	if v >= 100 {
+		return fmt.Sprintf("%d мс", round(v))
 	}
+	return Dec(v) + " мс"
+}
+
+func stab(w io.Writer, s *summary.Stab) {
+	if s == nil || len(s.Rows) == 0 {
+		return
+	}
+	fmt.Fprintf(w, "\nТест тикрейта: тикрейт %d, бюджет тика %s.\n", s.TickRate, Ms(s.BudgetMS))
+	fmt.Fprintf(w, "Тикрейт — в процентах от %d, время тика — в процентах бюджета, var — разброс интервала между тиками.\n\n", s.TickRate)
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "  сценарий\tсерверов\tтикрейт\tхудшая секунда\tтик, среднее\tтик, 1 из 100\tне уложились\tvar\t")
+	for _, r := range s.Rows {
+		fmt.Fprintf(tw, "  %s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t[%s]\n", r.Title, r.Servers, pctCell(r.RatePct), pctCell(r.WorstSecPct),
+			pctCell(r.WorkPct), pctCell(r.WorkP99Pct), fracPct(r.OverrunPct), Ms(r.VarMS), ratingText[r.Rating])
+	}
+	tw.Flush()
+	fmt.Fprintln(w)
+	for _, c := range s.Conclusions {
+		fmt.Fprintf(w, "  %s\n", c)
+	}
+	fmt.Fprintln(w)
+}
+
+// fracPct formats a small share: "0", "0,4%", "3%".
+func fracPct(v float64) string {
+	switch {
+	case v <= 0:
+		return "0"
+	case v < 1:
+		return Dec(v) + "%"
+	}
+	return fmt.Sprintf("%d%%", round(v))
+}
+
+// GroupRow is one run of a command with several variants.
+type GroupRow struct {
+	Variant string
+	Run     *result.Run
+	Sum     summary.Summary
+}
+
+// Group prints the headline numbers of all variants side by side.
+func Group(w io.Writer, rows []GroupRow) {
+	fmt.Fprintf(w, "\nВсе варианты (%d)\n", len(rows))
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(tw, "  вариант\tпоток один, всё загружено\tоба потока, каждый\tлаги\tтикрейт, худшая секунда\tтик, 1 из 100\t")
+	for _, g := range rows {
+		s := g.Sum
+		alone, pair, lag := "—", "—", "—"
+		if len(g.Run.Points) > 0 {
+			alone = pctCell(s.FullAlonePct)
+		}
+		if s.HasPair {
+			pair = pctCell(s.FullPairPct)
+		}
+		if s.LagRatio > 0 {
+			lag = Dec(s.LagRatio) + "×"
+		}
+		worst, work := "—", "—"
+		if r, ok := s.Stab.KeyRow(); ok {
+			worst, work = pctCell(r.WorstSecPct), pctCell(r.WorkP99Pct)
+		}
+		name := g.Variant
+		if g.Run.Partial {
+			name += " (прерван)"
+		}
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%s\t%s\t\n", name, alone, pair, lag, worst, work)
+	}
+	tw.Flush()
 }
 
 // pairs prints every core as a pair of its threads: each thread alone and

@@ -28,7 +28,14 @@ type Run struct {
 	CPU            CPUInfo   `json:"cpu"`
 	Params         Params    `json:"params"`
 	Points         []Point   `json:"points"`
-	Warnings       []string  `json:"warnings"`
+	// Stability is the tick rate test; nil when it was not run.
+	Stability *Stability `json:"stability,omitempty"`
+	Warnings  []string   `json:"warnings"`
+	// Group links runs started by one command with several variants
+	// (for example --profile source,minecraft --bg-threads 1,2).
+	GroupID    string `json:"group_id,omitempty"`
+	GroupIndex int    `json:"group_index,omitempty"` // 1-based
+	GroupTotal int    `json:"group_total,omitempty"`
 }
 
 type CPUInfo struct {
@@ -78,6 +85,10 @@ type Params struct {
 	Modes       []string       `json:"modes"`
 	Cores       []int          `json:"cores"`
 	NoiseMaxPct float64        `json:"noise_max_pct"`
+	// Tick rate test settings; zero in runs made before it existed.
+	TickRate    int `json:"tick_rate,omitempty"`
+	TickLoadPct int `json:"tick_load_pct,omitempty"`
+	StabMS      int `json:"stab_ms,omitempty"`
 }
 
 type Point struct {
@@ -99,6 +110,47 @@ type ThreadResult struct {
 	TickP99us   float64 `json:"tick_p99_us"`
 	TickP999us  float64 `json:"tick_p999_us"`
 	MHz         float64 `json:"mhz"`
+}
+
+// Stability is a game-server-like loop: every 1/TickRate seconds a server
+// does WorkTicks profile ticks and sleeps until the next tick is due.
+type Stability struct {
+	TickRate    int            `json:"tick_rate"`
+	TickLoadPct int            `json:"tick_load_pct"`
+	WorkTicks   int            `json:"work_ticks"`   // profile ticks per server tick
+	IdleWorkUs  float64        `json:"idle_work_us"` // one server tick on an idle machine
+	CalibCPU    int            `json:"calib_cpu"`
+	DurationMS  int            `json:"duration_ms"` // per scenario
+	Scenarios   []StabScenario `json:"scenarios"`
+}
+
+type StabScenario struct {
+	Name    string       `json:"name"`
+	Busy    []int        `json:"busy"`   // CPUs under constant full load
+	Bursty  []int        `json:"bursty"` // CPUs switching load on and off at random
+	Servers []StabServer `json:"servers"`
+}
+
+// StabServer is one server loop pinned to CPU. Times are in microseconds.
+type StabServer struct {
+	CPU   int `json:"cpu"`
+	Ticks int `json:"ticks"`
+	// PerSec is the number of ticks started in each second of the scenario.
+	PerSec []int `json:"per_sec"`
+	// MaxWorkPerSec is the longest tick work in each second.
+	MaxWorkPerSec []float64 `json:"max_work_per_sec"`
+	WorkP50us     float64   `json:"work_p50_us"`
+	WorkP99us     float64   `json:"work_p99_us"`
+	WorkMaxUs     float64   `json:"work_max_us"`
+	WorkMeanUs    float64   `json:"work_mean_us"`
+	// Interval between tick starts.
+	IntervalP99us float64 `json:"interval_p99_us"`
+	IntervalSDus  float64 `json:"interval_sd_us"`
+	// Overruns: ticks whose work took longer than the tick period.
+	Overruns int `json:"overruns"`
+	// Late: ticks that started more than 10% of the period after their slot.
+	Late      int     `json:"late"`
+	WakeP99us float64 `json:"wake_p99_us"`
 }
 
 var validModes = map[string]bool{"single": true, "solo_b": true, "pair": true, "final": true}

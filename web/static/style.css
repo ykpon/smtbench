@@ -13,6 +13,7 @@
   --series-3: #1baf7a;
   --series-4: #eda100;
   --series-5: #e87ba4;
+  --series-6: #8a63d2;
   --band: rgba(82, 81, 78, 0.07);
   --good: #0ca30c;
   --warn: #fab219;
@@ -39,6 +40,7 @@
     --series-3: #199e70;
   --series-4: #c98500;
   --series-5: #d55181;
+  --series-6: #9b7be0;
     --band: rgba(240, 239, 236, 0.06);
     --seq-0: #184f95;
     --seq-1: #1c5cab;
@@ -62,6 +64,7 @@
   --series-3: #199e70;
   --series-4: #c98500;
   --series-5: #d55181;
+  --series-6: #9b7be0;
   --band: rgba(240, 239, 236, 0.06);
   --seq-0: #184f95;
   --seq-1: #1c5cab;
@@ -220,3 +223,16 @@ dl.params dd { margin: 0; font-variant-numeric: tabular-nums; }
 .params-panel > summary { color: var(--text-2); cursor: pointer; }
 .params-panel[open] > summary { margin-bottom: 12px; }
 .wrap { white-space: normal; display: inline-block; max-width: 320px; text-align: left; }
+
+/* variants of one command */
+.variants { display: grid; gap: 8px; margin-bottom: 14px; }
+.variants .dim { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.variants .dim-title { min-width: 120px; color: var(--text-2); font-size: 13px; }
+.tab { display: inline-block; padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); text-decoration: none; }
+a.tab:hover { border-color: var(--accent); }
+.tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.tab.off { opacity: 0.45; border-style: dashed; }
+tr.current > * { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+tr.group-head td { padding-top: 14px; font-size: 13px; color: var(--text-2); border-bottom: none; }
+tr.in-group td:nth-child(2) { padding-left: 22px; }
+td.cpu { white-space: normal; min-width: 150px; }

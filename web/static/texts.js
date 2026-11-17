@@ -108,7 +108,8 @@ function mixText(mix) {
   return Object.entries(mix || {}).sort().map(([k, v]) => `${k}=${v}`).join(",");
 }
 
-const defaultModes = "single,solo_b,pair";
+const defaultModes = "single,solo_b,pair,stability";
+const rampModes = (p) => (p.modes || []).filter((m) => m !== "stability").join(",");
 
 // paramsShort is a one-line summary of the settings that change the results.
 export function paramsShort(p) {
@@ -116,9 +117,10 @@ export function paramsShort(p) {
   const parts = [`соседи: ${bgText(p.bg_threads).replace(" (auto)", "")}`, `ядра: ${cpuList(p.cores)}`];
   if (p.step > 1) parts.push(`шаг ${p.step}`);
   if (p.order === "far") parts.push("сначала чужой чиплет/сокет");
-  if ((p.modes || []).join(",") !== defaultModes) parts.push(`режимы: ${(p.modes || []).join(",")}`);
-  parts.push(`замер ${secs(p.duration_ms)}`);
+  if (rampModes(p) !== "single,solo_b,pair") parts.push(rampModes(p) ? `режимы: ${rampModes(p)}` : "только тикрейт");
+  if (rampModes(p)) parts.push(`замер ${secs(p.duration_ms)}`);
   if (p.reps > 1) parts.push(`повторов ${p.reps}`);
+  if (p.tick_rate > 0) parts.push(`тикрейт ${p.tick_rate}`);
   return parts.join(" · ");
 }
 
@@ -132,12 +134,21 @@ export function paramsRows(run) {
   rows.push(
     ["Нагрузка на соседние ядра (--bg-threads)", bgText(p.bg_threads)],
     ["Тестируемые ядра (--cores)", cpuList(p.cores)],
-    ["Что мерилось (--modes)", (p.modes || []).map((m) => ({ single: "1-й поток один", solo_b: "2-й поток один", pair: "оба потока" })[m] || m).join(", ")],
+    ["Что мерилось (--modes)", (p.modes || []).map((m) => ({ single: "1-й поток один", solo_b: "2-й поток один", pair: "оба потока", stability: "тикрейт" })[m] || m).join(", ")],
     ["Шаг нагрузки (--step)", `${p.step} ${p.step === 1 ? "ядро" : "ядра"} за шаг`],
     ["Порядок загрузки (--order)", p.order === "far" ? "far: сначала чужой чиплет/сокет" : "near: сначала свой чиплет/сокет"],
     ["Замер и прогрев одной точки", `${secs(p.duration_ms)} + ${secs(p.warmup_ms)}`],
     ["Повторов точки (--reps)", String(p.reps)],
     ["Порог помех (--noise-max)", `${p.noise_max_pct}%`],
+  );
+  if (p.tick_rate > 0) {
+    rows.push(
+      ["Тикрейт в тесте стабильности (--tickrate)", String(p.tick_rate)],
+      ["Работа сервера (--tick-load)", `${p.tick_load_pct}% бюджета тика`],
+      ["Длительность сценария (--stab-duration)", secs(p.stab_ms)],
+    );
+  }
+  rows.push(
     ["Источник частоты", run.cpu.freq_source === "none" ? "не измерялась" : run.cpu.freq_source],
     ["Версия утилиты", run.tool_version],
   );
@@ -154,6 +165,11 @@ export function commandLine(run) {
   a.push(`--bg-threads ${p.bg_threads === 0 ? "auto" : p.bg_threads}`);
   if (p.cores && p.cores.length) a.push(`--cores ${[...p.cores].sort((x, y) => x - y).join(",")}`);
   if ((p.modes || []).join(",") !== defaultModes) a.push(`--modes ${(p.modes || []).join(",")}`);
+  if (p.tick_rate > 0) {
+    if (p.tick_rate !== (p.profile === "minecraft" ? 20 : 64)) a.push(`--tickrate ${p.tick_rate}`);
+    if (p.tick_load_pct !== 50) a.push(`--tick-load ${p.tick_load_pct}`);
+    if (p.stab_ms !== 10000) a.push(`--stab-duration ${flagDur(p.stab_ms)}`);
+  }
   if (p.step !== 1) a.push(`--step ${p.step}`);
   if (p.order !== "near") a.push(`--order ${p.order}`);
   if (p.duration_ms !== 3000) a.push(`--duration ${flagDur(p.duration_ms)}`);
@@ -162,4 +178,29 @@ export function commandLine(run) {
   if (p.noise_max_pct !== 3) a.push(`--noise-max ${p.noise_max_pct}`);
   a.push(`--label ${run.label}`);
   return a.join(" ");
+}
+
+// Settings that can differ between runs of one command (list flags).
+export const variantDims = [
+  { key: "profile", title: "Профиль", value: (p) => p.profile },
+  { key: "bg_threads", title: "Соседи (--bg-threads)", value: (p) => (p.bg_threads === 0 ? "auto" : String(p.bg_threads)) },
+  { key: "order", title: "Порядок (--order)", value: (p) => p.order },
+];
+
+// variantName names a run among runs that differ in dims, e.g. "source · соседи 2".
+export function variantName(p, dims) {
+  return dims.map((d) => (d.key === "bg_threads" ? `соседи ${d.value(p)}` : d.value(p))).join(" · ");
+}
+
+// fmtFrac formats a small share: "0", "0,4%", "3%".
+export function fmtFrac(v) {
+  if (v == null || v < 0) return "—";
+  if (v === 0) return "0";
+  return v < 1 ? `${fmtDec(v)}%` : `${Math.round(v)}%`;
+}
+
+// fmtMs formats milliseconds: "15,6 мс", "120 мс".
+export function fmtMs(v) {
+  if (v == null || v < 0) return "—";
+  return v >= 100 ? `${Math.round(v)}${nbsp}мс` : `${fmtDec(v)}${nbsp}мс`;
 }

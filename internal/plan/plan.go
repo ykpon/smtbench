@@ -95,8 +95,8 @@ func validate(t *topology.Topology, p result.Params) error {
 		return errors.New("не выбран ни один режим (--modes single,pair)")
 	}
 	for _, m := range p.Modes {
-		if m != "single" && m != "solo_b" && m != "pair" {
-			return fmt.Errorf("неизвестный режим %q, доступны single, solo_b и pair", m)
+		if !ValidMode(m) {
+			return fmt.Errorf("неизвестный режим %q, доступны single, solo_b, pair и stability", m)
 		}
 	}
 	if p.Order != "near" && p.Order != "far" {
@@ -114,6 +114,11 @@ func validate(t *topology.Topology, p result.Params) error {
 		}
 	}
 	return nil
+}
+
+// ValidMode reports whether m can be passed in --modes.
+func ValidMode(m string) bool {
+	return m == "single" || m == "solo_b" || m == "pair" || m == "stability"
 }
 
 func Build(t *topology.Topology, p result.Params) ([]Window, error) {

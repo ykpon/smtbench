@@ -12,7 +12,7 @@ import (
 	"smtbench/internal/result"
 )
 
-const Version = 3
+const Version = 4
 
 type Rating string
 
@@ -129,6 +129,7 @@ type Summary struct {
 	Cores          []Core            `json:"cores"`
 	WeakCores      []int             `json:"weak_cores"`
 	NoisyPoints    int               `json:"noisy_points"`
+	Stab           *Stab             `json:"stab,omitempty"`
 	Warnings       []string          `json:"warnings"`
 }
 
@@ -188,7 +189,7 @@ func pct(a, b float64) float64 {
 }
 
 func Compute(r *result.Run) Summary {
-	s := Summary{Version: Version, Ratings: map[string]Rating{}, WeakCores: []int{}, Warnings: []string{}, KneeSingle: -1}
+	s := Summary{Version: Version, Ratings: map[string]Rating{}, Cores: []Core{}, WeakCores: []int{}, Warnings: []string{}, KneeSingle: -1}
 
 	byCore := map[int]map[key]result.Point{}
 	var coreIDs []int
@@ -271,10 +272,15 @@ func Compute(r *result.Run) Summary {
 	}
 	rate("lag", s.LagRatio)
 
+	s.Stab = computeStab(r.Stability)
+	if row, ok := s.Stab.KeyRow(); ok {
+		s.Ratings["stab"] = row.Rating
+	}
+
 	if s.NoisyPoints > 0 {
 		s.Warnings = append(s.Warnings, fmt.Sprintf("%d точек измерены с помехами от других процессов", s.NoisyPoints))
 	}
-	if !s.HasFreq {
+	if !s.HasFreq && len(r.Points) > 0 {
 		s.Warnings = append(s.Warnings, "частота не измерялась")
 	}
 	if r.Partial {

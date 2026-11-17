@@ -20,12 +20,15 @@ const (
 	stLoad
 	stMeasure
 	stExit
+	stGame  // server loop of the tick rate test
+	stBurst // load switched on and off at random
 )
 
 type cmd struct {
 	st       state
 	deadline uint64        // stMeasure: clock value to stop at
 	done     chan<- sample // stMeasure: receives the result
+	game     *gameCmd      // stGame
 }
 
 type sample struct {
@@ -48,6 +51,8 @@ type worker struct {
 	clock timing.Clock
 	h     hist.Hist
 	freq  freq.Counter // nil when frequency is not measured
+	// tick rate test
+	hInt, hWake hist.Hist
 }
 
 func startWorker(cpu int, mix kernels.Mix, memBytes int, clock timing.Clock, fsrc freq.Source, wg *sync.WaitGroup, ready chan<- error) *worker {
@@ -108,6 +113,17 @@ func (w *worker) loop(tick *kernels.Tick) {
 			} else {
 				cur = cmd{st: stLoad} // keep running until told otherwise
 			}
+		case stGame:
+			g := cur.game
+			next, s := w.game(tick, g, &local)
+			g.done <- s
+			if next != nil {
+				cur = *next
+			} else {
+				cur = cmd{st: stIdle}
+			}
+		case stBurst:
+			cur = w.burst(tick, &local)
 		}
 	}
 }

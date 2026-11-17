@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"smtbench/internal/result"
+	"smtbench/internal/summary"
 )
 
 func fixture(t *testing.T) []byte {
@@ -97,7 +98,7 @@ func TestPostAndGet(t *testing.T) {
 	if code := getJSON(t, srv.URL+"/api/runs/"+m["id"], &got); code != 200 {
 		t.Fatalf("code %d", code)
 	}
-	if got.Run.RunID != m["id"] || got.Summary.Version != 3 {
+	if got.Run.RunID != m["id"] || got.Summary.Version != summary.Version {
 		t.Fatalf("%+v", got)
 	}
 }
@@ -232,5 +233,34 @@ func TestStorePersists(t *testing.T) {
 	got, err := st.Get(context.Background(), r.RunID)
 	if err != nil || !bytes.Equal(got, raw) {
 		t.Fatalf("%v", err)
+	}
+}
+
+func TestListGroup(t *testing.T) {
+	srv, _ := newServer(t, 32<<20)
+	now := time.Now()
+	for i, id := range []string{"a1", "a2", "b1"} {
+		r, _ := result.Decode(variant(t, strings.Repeat(id, 16), now.Add(time.Duration(i)*time.Minute)))
+		if id != "b1" {
+			r.GroupID, r.GroupIndex, r.GroupTotal = "g1", i+1, 2
+			r.Params.TickRate, r.Params.TickLoadPct, r.Params.StabMS = 64, 50, 1000
+			r.Stability = &result.Stability{TickRate: 64, TickLoadPct: 50, WorkTicks: 1, IdleWorkUs: 7800, DurationMS: 1000,
+				Scenarios: []result.StabScenario{{Name: "all_busy", Servers: []result.StabServer{{CPU: 0, Ticks: 60,
+					PerSec: []int{60}, MaxWorkPerSec: []float64{16000}, WorkMeanUs: 9000, WorkP99us: 15000}}}}}
+		}
+		b, _ := json.Marshal(r)
+		if resp, _ := postGzip(t, srv.URL, b); resp.StatusCode != 201 {
+			t.Fatalf("post %s: %d", id, resp.StatusCode)
+		}
+	}
+	var all, grp []Meta
+	getJSON(t, srv.URL+"/api/runs", &all)
+	getJSON(t, srv.URL+"/api/runs?group=g1", &grp)
+	if len(all) != 3 || len(grp) != 2 || grp[0].GroupTotal != 2 {
+		t.Fatalf("all %d group %d", len(all), len(grp))
+	}
+	h := grp[0].Headline.Stab
+	if h == nil || h.Scenario != "all_busy" || h.WorstSecPct > 94 || h.WorstSecPct < 93 || grp[0].Headline.Ratings["stab"] != summary.Warn {
+		t.Fatalf("%+v %v", h, grp[0].Headline.Ratings)
 	}
 }
