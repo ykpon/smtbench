@@ -26,7 +26,11 @@ type StabRow struct {
 	LatePct     float64 `json:"late_pct"`    // ticks started late by more than 10% of the period
 	VarMS       float64 `json:"var_ms"`      // mean standard deviation of the interval between ticks
 	WakeP99us   float64 `json:"wake_p99_us"`
-	Rating      Rating  `json:"rating"`
+	// NoisePct is the worst server's share of awake time taken by other
+	// processes; Noisy when it is above --noise-max.
+	NoisePct float64 `json:"noise_pct"`
+	Noisy    bool    `json:"noisy"`
+	Rating   Rating  `json:"rating"`
 	// Per second of the scenario: the slowest server's tick rate and the
 	// longest tick on any server.
 	SecRatePct    []float64 `json:"sec_rate_pct"`
@@ -123,6 +127,7 @@ func StabScenario(st *result.Stability, sc result.StabScenario) StabRow {
 		row.WorkP99Pct = max(row.WorkP99Pct, 100*s.WorkP99us/periodUs)
 		row.WorkMaxPct = max(row.WorkMaxPct, 100*s.WorkMaxUs/periodUs)
 		row.WakeP99us = max(row.WakeP99us, s.WakeP99us)
+		row.NoisePct = max(row.NoisePct, s.NoisePct)
 		if s.IntervalP99us > 0 {
 			low := 100 * periodUs / s.IntervalP99us
 			if row.Low1Pct < 0 || low < row.Low1Pct {
@@ -157,7 +162,7 @@ func StabScenario(st *result.Stability, sc result.StabScenario) StabRow {
 	return row
 }
 
-func computeStab(st *result.Stability) *Stab {
+func computeStab(st *result.Stability, noiseMax float64) *Stab {
 	if st == nil || st.TickRate <= 0 {
 		return nil
 	}
@@ -165,7 +170,9 @@ func computeStab(st *result.Stability) *Stab {
 	s := &Stab{TickRate: st.TickRate, TickLoadPct: st.TickLoadPct, BudgetMS: periodUs / 1000,
 		IdleWorkMS: st.IdleWorkUs / 1000, DurationMS: st.DurationMS, Rows: []StabRow{}, Conclusions: []string{}}
 	for _, sc := range st.Scenarios {
-		s.Rows = append(s.Rows, StabScenario(st, sc))
+		row := StabScenario(st, sc)
+		row.Noisy = noiseMax > 0 && row.NoisePct > noiseMax
+		s.Rows = append(s.Rows, row)
 	}
 	if len(s.Rows) == 0 {
 		return s
@@ -205,7 +212,8 @@ func stabConclusions(s *Stab) []string {
 		line += fmt.Sprintf(", 1 тик из 100 — дольше %s", pctText(r.WorkP99Pct))
 		switch {
 		case r.WorstSecPct >= 0 && r.WorstSecPct < 100:
-			line += fmt.Sprintf("; в худшую секунду %d тиков из %d", int(math.Round(r.WorstSecPct*float64(s.TickRate)/100)), s.TickRate)
+			n := int(math.Round(r.WorstSecPct * float64(s.TickRate) / 100))
+			line += fmt.Sprintf("; в худшую секунду %d %s из %d", n, ticksWord(n), s.TickRate)
 		case r.OverrunPct > 0:
 			line += fmt.Sprintf("; %s тиков не уложились в бюджет, но сервер наверстал", pctTextFine(r.OverrunPct))
 		default:
@@ -233,4 +241,37 @@ func capFirst(s string) string {
 	}
 	r[0] = unicode.ToUpper(r[0])
 	return string(r)
+}
+
+// stabNoiseWarning names the tick rate scenarios disturbed by other processes.
+func stabNoiseWarning(s *Stab) string {
+	if s == nil {
+		return ""
+	}
+	var names []string
+	worst := 0.0
+	for _, r := range s.Rows {
+		if r.Noisy {
+			names = append(names, "«"+r.Title+"»")
+			worst = max(worst, r.NoisePct)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("тест тикрейта: другие процессы забирали у серверов до %s процессора в сценариях %s; эти цифры хуже, чем дало бы одно железо",
+		pctTextFine(worst), strings.Join(names, ", "))
+}
+
+// ticksWord is "тик" in the form that goes after n.
+func ticksWord(n int) string {
+	switch {
+	case n%100 >= 11 && n%100 <= 14:
+		return "тиков"
+	case n%10 == 1:
+		return "тик"
+	case n%10 >= 2 && n%10 <= 4:
+		return "тика"
+	}
+	return "тиков"
 }

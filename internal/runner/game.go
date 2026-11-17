@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 	"time"
 
+	"smtbench/internal/affinity"
 	"smtbench/internal/kernels"
 	"smtbench/internal/result"
 )
@@ -43,8 +44,12 @@ func (w *worker) game(tick *kernels.Tick, g *gameCmd, local *uint64) (*cmd, resu
 	nInt := 0
 	slot, last := 0, -1
 	due := origin
+	// Interference: time the thread was awake but not on the CPU.
+	var slept uint64
+	cpu0, _ := affinity.ThreadCPUTime()
+	began := w.clock.Now()
 	for slot < total {
-		w.sleepUntil(due)
+		slept += w.sleepUntil(due)
 		t0 := w.clock.Now()
 		for i := 0; i < g.work; i++ {
 			*local += tick.Run()
@@ -100,6 +105,11 @@ func (w *worker) game(tick *kernels.Tick, g *gameCmd, local *uint64) (*cmd, resu
 			break
 		}
 	}
+	if cpu1, err := affinity.ThreadCPUTime(); err == nil {
+		if awake := w.clock.Us(w.clock.Now() - began - slept); awake > 0 {
+			s.NoisePct = max(0, 100*(1-float64((cpu1-cpu0).Microseconds())/awake))
+		}
+	}
 	if s.Ticks > 0 {
 		s.WorkMeanUs = sumWork / float64(s.Ticks)
 		s.WorkP50us = w.h.Quantile(0.5) / 1000
@@ -115,21 +125,23 @@ func (w *worker) game(tick *kernels.Tick, g *gameCmd, local *uint64) (*cmd, resu
 	return next, s
 }
 
-// sleepUntil sleeps until the clock reaches deadline. The last spinUs before
-// it are spent spinning, because sleep on Windows overshoots by up to a millisecond.
-func (w *worker) sleepUntil(deadline uint64) {
+// sleepUntil sleeps until the clock reaches deadline and returns the time
+// spent asleep, in clock units. The last spinUs before the deadline are spent
+// spinning, because sleep on Windows overshoots by up to a millisecond.
+func (w *worker) sleepUntil(deadline uint64) (slept uint64) {
 	for {
 		now := w.clock.Now()
 		if now >= deadline {
-			return
+			return slept
 		}
 		rem := w.clock.Us(deadline - now)
 		if rem <= spinUs+50 {
 			for w.clock.Now() < deadline {
 			}
-			return
+			return slept
 		}
 		osSleep(time.Duration(rem-spinUs) * time.Microsecond)
+		slept += w.clock.Now() - now
 	}
 }
 

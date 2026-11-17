@@ -234,3 +234,32 @@ func TestExecRunsStabilityOnly(t *testing.T) {
 		t.Fatalf("\n%s", out)
 	}
 }
+
+func TestExecRunsExplicitAVXFails(t *testing.T) {
+	d, _ := fakeDeps(t, okPoints)
+	d.hasAVX = false
+	d.out = io.Discard
+	runs, _ := parseRunFlags([]string{"--cores", "0", "--profile", "avx,int", "--dry-run"}, "host")
+	if code := execRuns(context.Background(), runs, d); code != 1 {
+		t.Fatalf("code %d", code)
+	}
+}
+
+func TestExecRunsInterruptedInStability(t *testing.T) {
+	d, _ := fakeDeps(t, okPoints)
+	d.stab = func(ctx context.Context, c runner.Config, sw []plan.StabWindow) (*result.Stability, error) {
+		st, _ := okStab(ctx, c, sw[:2])
+		return st, context.Canceled
+	}
+	o := opts(t, "--stab-duration", "2s")
+	if code := execRuns(context.Background(), []runOpts{o}, d); code != 130 {
+		t.Fatalf("code %d", code)
+	}
+	r, err := result.Load(o.Out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !r.Partial || len(r.Points) != 49 || r.Stability == nil || len(r.Stability.Scenarios) != 2 {
+		t.Fatalf("partial %v points %d stab %+v", r.Partial, len(r.Points), r.Stability)
+	}
+}

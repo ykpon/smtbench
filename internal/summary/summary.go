@@ -272,7 +272,10 @@ func Compute(r *result.Run) Summary {
 	}
 	rate("lag", s.LagRatio)
 
-	s.Stab = computeStab(r.Stability)
+	s.Stab = computeStab(r.Stability, r.Params.NoiseMaxPct)
+	if w := stabNoiseWarning(s.Stab); w != "" {
+		s.Warnings = append(s.Warnings, w)
+	}
 	if row, ok := s.Stab.KeyRow(); ok {
 		s.Ratings["stab"] = row.Rating
 	}

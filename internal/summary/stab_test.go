@@ -57,3 +57,22 @@ func TestStab(t *testing.T) {
 		}
 	}
 }
+
+func TestStabNoise(t *testing.T) {
+	quiet := stabServer(0, []int{64}, 7812.5, 9375, 0)
+	loud := stabServer(2, []int{64}, 7812.5, 9375, 0)
+	loud.NoisePct = 12
+	st := &result.Stability{TickRate: 64, TickLoadPct: 50, IdleWorkUs: 7812.5, DurationMS: 1000,
+		Scenarios: []result.StabScenario{
+			{Name: "alone", Servers: []result.StabServer{quiet}},
+			{Name: "all_busy", Servers: []result.StabServer{quiet, loud}},
+		}}
+	s := Compute(&result.Run{Params: result.Params{NoiseMaxPct: 3}, Stability: st})
+	if s.Stab.Rows[0].Noisy || !s.Stab.Rows[1].Noisy || s.Stab.Rows[1].NoisePct != 12 {
+		t.Fatalf("%+v", s.Stab.Rows)
+	}
+	all := strings.Join(s.Warnings, "\n")
+	if !strings.Contains(all, "до 12% процессора") || !strings.Contains(all, "«все остальные потоки загружены на 100%»") {
+		t.Fatalf("%v", s.Warnings)
+	}
+}

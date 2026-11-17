@@ -237,8 +237,12 @@ func StabLine(w io.Writer, p runner.StabProgress) {
 			p.Stab.TickRate, Ms(1e3/float64(p.Stab.TickRate)), Ms(p.Stab.IdleWorkUs/1000))
 	}
 	r := summary.StabScenario(p.Stab, p.Scenario)
-	fmt.Fprintf(w, "[%d/%d] %s: тикрейт %s, худшая секунда %s · тик в среднем %s бюджета, 1 из 100 дольше %s\n",
-		p.Done, p.Total, r.Title, pctCell(r.RatePct), pctCell(r.WorstSecPct), pctCell(r.WorkPct), pctCell(r.WorkP99Pct))
+	noise := ""
+	if r.NoisePct >= 1 {
+		noise = fmt.Sprintf(" · помехи %s", fracPct(r.NoisePct))
+	}
+	fmt.Fprintf(w, "[%d/%d] %s: тикрейт %s, худшая секунда %s · тик в среднем %s бюджета, 1 из 100 дольше %s%s\n",
+		p.Done, p.Total, r.Title, pctCell(r.RatePct), pctCell(r.WorstSecPct), pctCell(r.WorkPct), pctCell(r.WorkP99Pct), noise)
 }
 
 // Ms formats milliseconds: "15,6 мс", "120 мс".
@@ -256,10 +260,14 @@ func stab(w io.Writer, s *summary.Stab) {
 	fmt.Fprintf(w, "\nТест тикрейта: тикрейт %d, бюджет тика %s.\n", s.TickRate, Ms(s.BudgetMS))
 	fmt.Fprintf(w, "Тикрейт — в процентах от %d, время тика — в процентах бюджета, var — разброс интервала между тиками.\n\n", s.TickRate)
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "  сценарий\tсерверов\tтикрейт\tхудшая секунда\tтик, среднее\tтик, 1 из 100\tне уложились\tvar\t")
+	fmt.Fprintln(tw, "  сценарий\tсерверов\tтикрейт\tхудшая секунда\tтик, среднее\tтик, 1 из 100\tне уложились\tvar\tпомехи\t")
 	for _, r := range s.Rows {
-		fmt.Fprintf(tw, "  %s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t[%s]\n", r.Title, r.Servers, pctCell(r.RatePct), pctCell(r.WorstSecPct),
-			pctCell(r.WorkPct), pctCell(r.WorkP99Pct), fracPct(r.OverrunPct), Ms(r.VarMS), ratingText[r.Rating])
+		noise := fracPct(r.NoisePct)
+		if r.Noisy {
+			noise += " ⚠"
+		}
+		fmt.Fprintf(tw, "  %s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t[%s]\n", r.Title, r.Servers, pctCell(r.RatePct), pctCell(r.WorstSecPct),
+			pctCell(r.WorkPct), pctCell(r.WorkP99Pct), fracPct(r.OverrunPct), Ms(r.VarMS), noise, ratingText[r.Rating])
 	}
 	tw.Flush()
 	fmt.Fprintln(w)

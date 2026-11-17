@@ -151,6 +151,9 @@ type StabServer struct {
 	// Late: ticks that started more than 10% of the period after their slot.
 	Late      int     `json:"late"`
 	WakeP99us float64 `json:"wake_p99_us"`
+	// NoisePct: share of the time the server was awake but other processes
+	// had its CPU, in percent.
+	NoisePct float64 `json:"noise_pct"`
 }
 
 var validModes = map[string]bool{"single": true, "solo_b": true, "pair": true, "final": true}

@@ -165,7 +165,7 @@ func execRuns(ctx context.Context, runs []runOpts, d runDeps) int {
 			return fail(err)
 		}
 		if err := preflight(o, t, avail, d.hasAVX); err != nil {
-			if errors.Is(err, errNoAVX) && len(runs) > 1 {
+			if errors.Is(err, errNoAVX) && o.AllProfiles {
 				skipped = append(skipped, o.Variant)
 				continue
 			}

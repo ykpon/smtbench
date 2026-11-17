@@ -211,7 +211,7 @@ async function variantsBlock(run) {
 const stabColors = [C[0], C[1], C[2], C[3], C[4], "var(--series-6)"];
 
 function stabTable(st) {
-  const rows = st.rows.map((r) => `<tr><td>${esc(r.title)}</td><td class="num">${r.servers}</td>
+  const rows = st.rows.map((r) => `<tr><td>${esc(r.title)}${r.noisy ? ` <span title="другие процессы забирали до ${fmtFrac(r.noise_pct)} процессора">⚠</span>` : ""}</td><td class="num">${r.servers}</td>
     <td class="num">${fmtPct(r.rate_pct)}</td><td class="num">${valueWithRating(fmtPct(r.worst_sec_pct), r.rating)}</td><td class="num">${fmtPct(r.low1_pct)}</td>
     <td class="num grp">${fmtPct(r.work_pct)}</td><td class="num">${fmtPct(r.work_p99_pct)}</td><td class="num">${fmtPct(r.work_max_pct)}</td>
     <td class="num grp">${fmtFrac(r.overrun_pct)}</td><td class="num">${fmtMs(r.var_ms)}</td></tr>`).join("");
@@ -235,7 +235,7 @@ function stabBlock(st) {
         <div class="tabs" id="stabview"><button data-v="rate" class="active">тикрейт самого медленного сервера</button><button data-v="work">самый долгий тик</button></div></div>
       <div id="stabchart"></div>
       <p class="muted small">Худшая секунда — самая медленная секунда самого медленного сервера. 1% low — тикрейт по 1% самых длинных интервалов между тиками.
-        «1 из 100» — 1% тиков длиннее этого. var — разброс интервала между тиками (как var в stats у Source). Тики, опоздавшие на половину бюджета и больше, сервер пропускает.
+        «1 из 100» — 1% тиков длиннее этого. var — разброс интервала между тиками (как var в stats у Source). Тики, опоздавшие на половину бюджета и больше, сервер пропускает. ⚠ — другие процессы забирали у серверов процессор (больше порога --noise-max).
         Каждый сценарий длится ${Math.round(st.duration_ms / 1000)} с.</p>
     </div>`;
 }
